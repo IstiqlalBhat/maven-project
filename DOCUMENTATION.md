@@ -52,7 +52,30 @@ The "AI" Planner (`/api/ai-plan/[pitcherId]`) generates a custom training plan u
     -   **Arsenal Depth**: Checks if the pitcher has fewer than 3 pitch types and suggests adding a complementary off-speed pitch.
 -   **Output**: Returns a structured plan with specific "Action Items", "Timeline", and "Realistic Path" (e.g., "D1 Prospect" vs "Building Phase").
 
-### 3.4. Pitch Tracking (CRUD)
+### 3.4. AI Coaching Assistant (Maven AI)
+"Maven AI" is a context-aware chatbot powered by **Google's Gemini 2.0 Flash** model (`/api/chat`).
+-   **Context Awareness**: The AI is injected with a comprehensive "Pitcher Context" before every response, which includes:
+    -   **Full Arsenal Breakdown**: Velocity, spin, movement, and consistency (stddev) for every pitch type.
+    -   **MLB Percentiles**: How the user ranks against pros (e.g., "95th percentile spin rate").
+    -   **Velocity Separation**: Analysis of speed caps between Fastballs and Off-speed pitches.
+    -   **Recent Trends**: Comparison of the last 10 pitches vs. career average (detecting fatigue or improvement).
+    -   **Similar MLB Pitchers**: Top 3 statistical matches from the database.
+-   **Conversation History**: Chat history is persisted locally using **Session Storage** (`sessionStorage`). This ensures conversations are saved during a browsing session but cleared when the tab is closed for privacy/security. Context window corresponds to the last 20 messages.
+
+### 3.5. Advanced Analytics & Complex Queries
+The application leverages PostgreSQL's analytical capabilities for complex data retrieval:
+
+#### Similar Pitcher Search (`/api/similar`)
+Finds MLB pitchers with statistically similar metrics to the user.
+-   **Algorithm**: Uses **Euclidean Distance** on normalized vectors of Velocity and Spin Rate.
+-   **Formula**: `Distance = sqrt(((UserVelo - MLBVelo)/10)^2 + ((UserSpin - MLBSpin)/500)^2)`
+-   **Optimization**: Queries a Materialized View (`mv_pitcher_stats`) for sub-millisecond performance against thousands of MLB records.
+
+#### Pitch Comparison (`/api/compare`)
+(See section 3.2 for core logic)
+-   **Updates**: Now includes percentile rankings for **Horizontal and Vertical Break** using a scaled ratio comparison against MLB averages.
+
+### 3.6. Pitch Tracking (CRUD)
 -   **Pitchers**: Users can create multiple pitcher profiles.
 -   **Pitches**: Users log individual pitches. Each pitch record includes:
     -   Type (Fastball, Curveball, etc.)
