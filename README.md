@@ -89,6 +89,8 @@ To power the analytics and AI comparisons, you need to seed the database with ML
 ### 1. Admin Access
 Navigate to `/admin` and log in using the `ADMIN_PASSWORD` defined in your environment variables.
 
+> **Developer Note**: The admin UI is built with components in `src/components/Admin/` (DataIngestion, DataStats, etc.).
+
 ### 2. Ingesting Data
 The Admin Dashboard provides a **Data Ingestion** panel:
 1. Select a date range (e.g., "Last 30 Days" or specific dates).
