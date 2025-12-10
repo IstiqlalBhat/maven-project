@@ -31,7 +31,6 @@ export default function Sidebar({ pitcherId }: SidebarProps) {
         { name: 'Dashboard', icon: LayoutDashboard, path: pitcherId ? `/dashboard/${pitcherId}` : '/' },
         { name: 'Stats', icon: BarChart2, path: pitcherId ? `/stats/${pitcherId}` : '/' },
         { name: 'Pitcher', icon: User, path: pitcherId ? `/pitcher/${pitcherId}` : '/create-profile' },
-        { name: 'Benchmark', icon: Target, path: pitcherId ? `/compare/${pitcherId}` : '/' },
         { name: 'Teams', icon: Users, path: '/teams' },
         { name: 'Plugins', icon: Puzzle, path: '/plugins' },
         { name: 'Compare', icon: GitCompare, path: pitcherId ? `/compare/${pitcherId}` : '/' },
@@ -87,7 +86,7 @@ export default function Sidebar({ pitcherId }: SidebarProps) {
                     className="nav-item w-full"
                 >
                     <Settings size={20} />
-                    {!collapsed && <span>Settings</span>}
+                    {!collapsed && <span>Ingest Data (Admin)</span>}
                 </button>
 
                 <button

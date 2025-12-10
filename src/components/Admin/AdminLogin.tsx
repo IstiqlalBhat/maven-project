@@ -47,8 +47,20 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-            <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden relative">
                 <div className="p-8">
+                    <div className="absolute top-4 left-4">
+                        <button
+                            onClick={() => window.location.href = '/'}
+                            className="text-sm text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            Back to App
+                        </button>
+                    </div>
+
                     <div className="flex justify-center mb-6">
                         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
                             <Lock className="w-8 h-8 text-blue-600" />

@@ -55,15 +55,27 @@ export default function AdminPage() {
                     <div className="max-w-7xl mx-auto">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
                             <div className="space-y-2">
-                                <button
-                                    onClick={handleLogout}
-                                    className="inline-flex items-center text-sm text-amber-700 hover:text-amber-900 transition-colors mb-2"
-                                >
-                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                    </svg>
-                                    Sign Out
-                                </button>
+                                <div className="flex gap-3 mb-2">
+                                    <button
+                                        onClick={() => window.location.href = '/'}
+                                        className="inline-flex items-center text-sm text-gray-600 hover:text-amber-700 transition-colors"
+                                    >
+                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                        </svg>
+                                        Back to App
+                                    </button>
+                                    <span className="text-gray-300">|</span>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="inline-flex items-center text-sm text-amber-700 hover:text-amber-900 transition-colors"
+                                    >
+                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                        Sign Out
+                                    </button>
+                                </div>
                                 <h1 className="text-4xl font-bold gradient-text">
                                     System Administration
                                 </h1>
