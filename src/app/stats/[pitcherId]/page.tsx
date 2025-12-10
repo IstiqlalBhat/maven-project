@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { BarChart2, Target, Activity, PieChart, Radar } from 'lucide-react';
+import { BarChart2, Target, Activity, PieChart, Radar, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import StatsCard from '@/components/StatsCard';
 import PercentileBar from '@/components/PercentileBar';
@@ -15,6 +15,8 @@ import {
     SpinHistogram,
     BreakComparisonChart,
 } from '@/components/StatsCharts';
+import { useAuth } from '@/context/AuthContext';
+import { authGet } from '@/lib/auth-fetch';
 
 interface Pitcher {
     id: number;
@@ -65,6 +67,7 @@ interface Comparison {
 export default function StatsPage() {
     const params = useParams();
     const router = useRouter();
+    const { user, loading: authLoading } = useAuth();
     const pitcherId = parseInt(params.pitcherId as string);
 
     const [pitcher, setPitcher] = useState<Pitcher | null>(null);
@@ -73,9 +76,17 @@ export default function StatsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'comparison'>('overview');
 
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/login');
+        }
+    }, [user, authLoading, router]);
+
     // Fetch pitcher info
     useEffect(() => {
-        fetch(`/api/pitchers/${pitcherId}`)
+        if (!user) return;
+        authGet(`/api/pitchers/${pitcherId}`)
             .then(res => res.json())
             .then(data => {
                 if (data.error) {
@@ -85,19 +96,20 @@ export default function StatsPage() {
                 setPitcher(data);
             })
             .catch(() => router.push('/'));
-    }, [pitcherId, router]);
+    }, [pitcherId, router, user]);
 
     // Fetch pitches
     const fetchPitches = useCallback(() => {
+        if (!user) return;
         setIsLoading(true);
-        fetch(`/api/pitches?pitcher_id=${pitcherId}`)
+        authGet(`/api/pitches?pitcher_id=${pitcherId}`)
             .then(res => res.json())
             .then(data => {
                 setPitches(Array.isArray(data) ? data : []);
                 setIsLoading(false);
             })
             .catch(() => setIsLoading(false));
-    }, [pitcherId]);
+    }, [pitcherId, user]);
 
     useEffect(() => {
         fetchPitches();
@@ -105,15 +117,15 @@ export default function StatsPage() {
 
     // Fetch comparisons
     useEffect(() => {
-        if (pitches.length > 0) {
-            fetch(`/api/compare/${pitcherId}`)
+        if (pitches.length > 0 && user) {
+            authGet(`/api/compare/${pitcherId}`)
                 .then(res => res.json())
                 .then(data => {
                     setComparisons(data.comparisons || []);
                 })
                 .catch(() => { });
         }
-    }, [pitcherId, pitches.length]);
+    }, [pitcherId, pitches.length, user]);
 
     // Calculate basic stats
     const avgVelocity = pitches.length > 0
@@ -251,6 +263,15 @@ export default function StatsPage() {
             comparison,
         };
     });
+
+    // Show loading while checking auth
+    if (authLoading || !user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+            </div>
+        );
+    }
 
     if (isLoading && !pitcher) {
         return (

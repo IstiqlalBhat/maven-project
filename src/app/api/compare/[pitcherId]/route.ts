@@ -1,16 +1,54 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
 import { PITCH_TYPES } from '@/lib/fetch-mlb-data';
+import { requireUserAuth } from '@/lib/auth-middleware';
+import { apiRateLimiter } from '@/lib/rate-limiter';
+import { parseIdParam } from '@/lib/validation';
 
 interface RouteParams {
     params: Promise<{ pitcherId: string }>;
 }
 
+/**
+ * Verify that the authenticated user owns the specified pitcher
+ */
+async function verifyPitcherOwnership(pitcherId: number, uid: string): Promise<boolean> {
+    const result = await query(
+        'SELECT id FROM user_pitchers WHERE id = $1 AND (firebase_uid = $2 OR firebase_uid IS NULL)',
+        [pitcherId, uid]
+    );
+    return result.rows.length > 0;
+}
+
 // GET /api/compare/[pitcherId] - Compare user pitches to MLB data
 export async function GET(request: Request, { params }: RouteParams) {
+    // Rate limiting
+    const rateLimitResponse = apiRateLimiter(request);
+    if (rateLimitResponse) {
+        return rateLimitResponse;
+    }
+
+    // Require user authentication
+    const authResult = await requireUserAuth();
+    if (authResult instanceof NextResponse) {
+        return authResult;
+    }
+    const { uid } = authResult;
+
     try {
         const { pitcherId } = await params;
-        const id = parseInt(pitcherId);
+
+        // Validate ID
+        const id = parseIdParam(pitcherId);
+        if (id instanceof NextResponse) {
+            return id;
+        }
+
+        // Verify ownership
+        const isOwner = await verifyPitcherOwnership(id, uid);
+        if (!isOwner) {
+            return NextResponse.json({ error: 'Pitcher not found' }, { status: 404 });
+        }
 
         // Get user's pitches
         const userPitchesResult = await query(

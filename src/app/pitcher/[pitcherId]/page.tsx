@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { User, Edit2, Save, X, Calendar, Activity } from 'lucide-react';
+import { User, Edit2, Save, X, Calendar, Activity, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useAuth } from '@/context/AuthContext';
+import { authGet, authPut } from '@/lib/auth-fetch';
 
 interface Pitcher {
     id: number;
@@ -22,9 +24,28 @@ interface PitchStats {
     lastPitchDate: string | null;
 }
 
+// Format date to a readable string with time
+const formatDate = (dateStr: string | null): string => {
+    if (!dateStr) return '-';
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+    } catch {
+        return dateStr;
+    }
+};
+
 export default function PitcherPage() {
     const params = useParams();
     const router = useRouter();
+    const { user, loading: authLoading } = useAuth();
     const pitcherId = parseInt(params.pitcherId as string);
 
     const [pitcher, setPitcher] = useState<Pitcher | null>(null);
@@ -34,10 +55,18 @@ export default function PitcherPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/login');
+        }
+    }, [user, authLoading, router]);
+
     // Fetch pitcher info
     useEffect(() => {
+        if (!user) return;
         setIsLoading(true);
-        fetch(`/api/pitchers/${pitcherId}`)
+        authGet(`/api/pitchers/${pitcherId}`)
             .then(res => res.json())
             .then(data => {
                 if (data.error) {
@@ -49,26 +78,28 @@ export default function PitcherPage() {
                 setIsLoading(false);
             })
             .catch(() => router.push('/'));
-    }, [pitcherId, router]);
+    }, [pitcherId, router, user]);
 
     // Fetch pitch stats
     useEffect(() => {
-        fetch(`/api/pitches?pitcher_id=${pitcherId}`)
+        if (!user) return;
+        authGet(`/api/pitches?pitcher_id=${pitcherId}`)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data) && data.length > 0) {
                     const pitches = data;
                     const avgVelo = pitches.filter((p: { velocity_mph: number | null }) => p.velocity_mph).reduce((sum: number, p: { velocity_mph: number | null }) => sum + (p.velocity_mph || 0), 0) / pitches.filter((p: { velocity_mph: number | null }) => p.velocity_mph).length || 0;
                     const avgSpin = pitches.filter((p: { spin_rate: number | null }) => p.spin_rate).reduce((sum: number, p: { spin_rate: number | null }) => sum + (p.spin_rate || 0), 0) / pitches.filter((p: { spin_rate: number | null }) => p.spin_rate).length || 0;
-                    const dates = pitches.filter((p: { date: string | null }) => p.date).map((p: { date: string | null }) => p.date).sort();
+                    // Use created_at for real timestamps with time
+                    const timestamps = pitches.filter((p: { created_at: string | null }) => p.created_at).map((p: { created_at: string | null }) => p.created_at).sort();
 
                     setStats({
                         totalPitches: pitches.length,
                         pitchTypes: [...new Set(pitches.map((p: { pitch_type: string }) => p.pitch_type))] as string[],
                         avgVelocity: avgVelo,
                         avgSpin: avgSpin,
-                        firstPitchDate: dates[0] || null,
-                        lastPitchDate: dates[dates.length - 1] || null,
+                        firstPitchDate: timestamps[0] || null,
+                        lastPitchDate: timestamps[timestamps.length - 1] || null,
                     });
                 } else {
                     setStats({
@@ -82,18 +113,14 @@ export default function PitcherPage() {
                 }
             })
             .catch(() => { });
-    }, [pitcherId]);
+    }, [pitcherId, user]);
 
     const handleSave = async () => {
         if (!editForm) return;
         setIsSaving(true);
 
         try {
-            const res = await fetch(`/api/pitchers/${pitcherId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editForm),
-            });
+            const res = await authPut(`/api/pitchers/${pitcherId}`, editForm);
 
             if (res.ok) {
                 const updated = await res.json();
@@ -111,6 +138,15 @@ export default function PitcherPage() {
         setEditForm(pitcher);
         setIsEditing(false);
     };
+
+    // Show loading while checking auth
+    if (authLoading || !user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (
@@ -280,13 +316,13 @@ export default function PitcherPage() {
                                 <div className="flex justify-between items-center">
                                     <span className="text-neutral-500">First Pitch</span>
                                     <span className="font-semibold text-neutral-800">
-                                        {stats?.firstPitchDate || '-'}
+                                        {formatDate(stats?.firstPitchDate || null)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-neutral-500">Last Pitch</span>
                                     <span className="font-semibold text-neutral-800">
-                                        {stats?.lastPitchDate || '-'}
+                                        {formatDate(stats?.lastPitchDate || null)}
                                     </span>
                                 </div>
                             </div>

@@ -1,4 +1,7 @@
-import { query, initializeDatabase, pool } from './postgres';
+import { query, initializeDatabase, withClient, pool } from './postgres';
+import { from as copyFrom } from 'pg-copy-streams';
+import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
 
 // Baseball Savant CSV URL pattern
 const BASEBALL_SAVANT_CSV_URL = 'https://baseballsavant.mlb.com/statcast_search/csv';
@@ -119,120 +122,175 @@ export function parseCSV(csvText: string): Record<string, string>[] {
     return rows;
 }
 
+// Helper to add days to a date string
+function addDays(dateStr: string, days: number): string {
+    const date = new Date(dateStr);
+    date.setDate(date.getDate() + days);
+    return date.toISOString().split('T')[0];
+}
+
+// Helper to escape values for CSV
+function escapeCsv(value: string | number | null): string {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+}
+
 // Fetch MLB data from Baseball Savant and insert into PostgreSQL
 export async function fetchAndSeedMLBData(options: {
     startDate: string;
     endDate: string;
     season?: number;
-    batchSize?: number;
+    batchSize?: number; // Kept for interface compatibility, mostly irrelevant with COPY
 }): Promise<{ inserted: number; skipped: number; errors: number }> {
     const season = options.season || new Date().getFullYear();
-    const batchSize = options.batchSize || 1000;
+    // Increase chunk size since COPY is much faster
+    // But don't make it too huge to avoid memory issues with fetch/parse
+    // LIMIT: Baseball savant CSV export limit is 25,000 rows.
+    // 7 days * ~4500 pitches/day > 30k -> truncated data.
+    // 3 days * ~4500 pitches/day = ~13.5k -> safe buffer.
+    const CHUNK_DAYS = 3;
 
     console.log(`\n🎯 Fetching MLB Statcast data from ${options.startDate} to ${options.endDate}`);
     console.log(`   Season: ${season}`);
+    console.log(`   Chunk size: ${CHUNK_DAYS} days (optimized for 25k limit)`);
 
     // Initialize database schema
     await initializeDatabase();
 
-    // Build URL and fetch
-    const url = buildStatcastUrl({
-        startDate: options.startDate,
-        endDate: options.endDate,
-        season,
-    });
+    let currentStartDate = options.startDate;
+    const finalEndDate = options.endDate;
 
-    console.log('📡 Downloading CSV from Baseball Savant...');
+    let totalInserted = 0;
+    let totalSkipped = 0;
+    let totalErrors = 0;
 
-    const response = await fetch(url, {
-        headers: {
-            'User-Agent': 'PitchTracker/1.0',
-            'Accept': 'text/csv',
-        },
-    });
+    // Loop through date chunks
+    while (new Date(currentStartDate) <= new Date(finalEndDate)) {
+        let currentEndDate = addDays(currentStartDate, CHUNK_DAYS);
 
-    if (!response.ok) {
-        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
-    }
+        // Don't go past the final end date
+        if (new Date(currentEndDate) > new Date(finalEndDate)) {
+            currentEndDate = finalEndDate;
+        }
 
-    const csvText = await response.text();
-    console.log(`📥 Downloaded ${(csvText.length / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`\n📅 Processing chunk: ${currentStartDate} to ${currentEndDate}`);
 
-    // Parse CSV
-    const rows = parseCSV(csvText);
-    console.log(`📊 Parsed ${rows.length} pitch records`);
+        // Build URL and fetch
+        const url = buildStatcastUrl({
+            startDate: currentStartDate,
+            endDate: currentEndDate,
+            season,
+        });
 
-    if (rows.length === 0) {
-        return { inserted: 0, skipped: 0, errors: 0 };
-    }
+        console.log('📡 Downloading CSV from Baseball Savant...');
 
-    // Insert in batches
-    let inserted = 0;
-    let skipped = 0;
-    let errors = 0;
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'PitchTracker/1.0',
+                    'Accept': 'text/csv',
+                },
+            });
 
-    console.log('💾 Inserting into database...');
-
-    for (let i = 0; i < rows.length; i += batchSize) {
-        const batch = rows.slice(i, i + batchSize);
-        const values: unknown[] = [];
-        const placeholders: string[] = [];
-        let paramIndex = 1;
-
-        for (const row of batch) {
-            // Skip rows without essential data
-            if (!row.player_name || !row.pitch_type) {
-                skipped++;
-                continue;
+            if (!response.ok) {
+                throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
             }
 
-            // Parse numeric values
-            const releaseSpeed = row.release_speed ? parseFloat(row.release_speed) : null;
-            const spinRate = row.release_spin_rate ? parseInt(row.release_spin_rate) : null;
-            const pfxX = row.pfx_x ? parseFloat(row.pfx_x) : null;
-            const pfxZ = row.pfx_z ? parseFloat(row.pfx_z) : null;
-            const gameDate = row.game_date || null;
-            const pThrows = row.p_throws || null;
+            const csvText = await response.text();
+            console.log(`📥 Downloaded ${(csvText.length / 1024 / 1024).toFixed(2)} MB`);
 
-            placeholders.push(
-                `($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`
-            );
-            values.push(
-                row.player_name,
-                row.pitch_type,
-                releaseSpeed,
-                spinRate,
-                pfxX,
-                pfxZ,
-                gameDate,
-                pThrows
-            );
-        }
+            // Parse CSV
+            const rows = parseCSV(csvText);
+            console.log(`📊 Parsed ${rows.length} pitch records`);
 
-        if (placeholders.length > 0) {
-            try {
-                await query(
-                    `INSERT INTO mlb_pitches (pitcher_name, pitch_type, release_speed, release_spin_rate, pfx_x, pfx_z, game_date, p_throws)
-           VALUES ${placeholders.join(', ')}`,
-                    values
-                );
-                inserted += placeholders.length;
-            } catch (error) {
-                console.error(`Error inserting batch: ${error}`);
-                errors += batch.length;
+            if (rows.length >= 25000) {
+                console.warn('⚠️ WARNING: Chunk hit 25,000 record limit! Data may be truncated. Reduce CHUNK_DAYS further.');
             }
+
+            if (rows.length > 0) {
+                // Prepare data for COPY
+                const csvLines: string[] = [];
+                let chunkSkipped = 0;
+
+                for (const row of rows) {
+                    // Skip rows without essential data
+                    if (!row.player_name || !row.pitch_type) {
+                        chunkSkipped++;
+                        continue;
+                    }
+
+                    // Parse numeric values
+                    const releaseSpeed = row.release_speed ? parseFloat(row.release_speed) : null;
+                    const spinRate = row.release_spin_rate ? parseInt(row.release_spin_rate) : null;
+                    const pfxX = row.pfx_x ? parseFloat(row.pfx_x) : null;
+                    const pfxZ = row.pfx_z ? parseFloat(row.pfx_z) : null;
+                    const gameDate = row.game_date || null;
+                    const pThrows = row.p_throws || null;
+
+                    // Create CSV line matching the table schema order:
+                    // pitcher_name, pitch_type, release_speed, release_spin_rate, pfx_x, pfx_z, game_date, p_throws
+                    // Note: Postgres CSV format defaults to simple comma separation, quotes for strings if needed.
+                    csvLines.push(
+                        [
+                            escapeCsv(row.player_name),
+                            escapeCsv(row.pitch_type),
+                            escapeCsv(releaseSpeed),
+                            escapeCsv(spinRate),
+                            escapeCsv(pfxX),
+                            escapeCsv(pfxZ),
+                            escapeCsv(gameDate),
+                            escapeCsv(pThrows)
+                        ].join(',')
+                    );
+                }
+
+                if (csvLines.length > 0) {
+                    console.log('🚀 Streaming to database via COPY...');
+                    const csvData = csvLines.join('\n');
+
+                    await withClient(async (client) => {
+                        const stream = client.query(
+                            copyFrom('COPY mlb_pitches (pitcher_name, pitch_type, release_speed, release_spin_rate, pfx_x, pfx_z, game_date, p_throws) FROM STDIN WITH (FORMAT csv)')
+                        );
+
+                        // Create a readable stream from our data
+                        const sourceStream = Readable.from([csvData]);
+
+                        // Pipeline handles error propagation and cleanup
+                        await pipeline(sourceStream, stream);
+                    });
+
+                    const insertedCount = csvLines.length;
+                    console.log(`   Chunk results: ${insertedCount} inserted, ${chunkSkipped} skipped`);
+                    totalInserted += insertedCount;
+                    totalSkipped += chunkSkipped;
+                }
+            }
+        } catch (error) {
+            console.error(`Error processing chunk ${currentStartDate} to ${currentEndDate}:`, error);
+            totalErrors++;
         }
 
-        // Progress update
-        if ((i + batchSize) % 5000 === 0 || i + batchSize >= rows.length) {
-            const progress = Math.min(100, Math.round(((i + batchSize) / rows.length) * 100));
-            console.log(`   Progress: ${progress}% (${inserted} inserted, ${skipped} skipped)`);
-        }
+        // Move to next chunk
+        currentStartDate = addDays(currentEndDate, 1);
+
+        // Small delay
+        await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    console.log(`\n✅ Complete! Inserted: ${inserted}, Skipped: ${skipped}, Errors: ${errors}`);
+    console.log(`\n✅ Complete! Total Inserted: ${totalInserted}, Skipped: ${totalSkipped}, Errors: ${totalErrors}`);
 
-    return { inserted, skipped, errors };
+    if (totalInserted > 0) {
+        console.log('🔄 Refreshing pitcher stats materialized view...');
+        await query('REFRESH MATERIALIZED VIEW mv_pitcher_stats');
+        console.log('✨ View refreshed!');
+    }
+
+    return { inserted: totalInserted, skipped: totalSkipped, errors: totalErrors };
 }
 
 // Check if database already has data
@@ -242,6 +300,79 @@ export async function hasMLBData(): Promise<boolean> {
         return parseInt(result.rows[0].count) > 0;
     } catch {
         return false;
+    }
+}
+
+// Preview/estimate how many rows would be imported from a date range
+export async function previewMLBData(options: {
+    startDate: string;
+    endDate: string;
+    season?: number;
+}): Promise<{ estimatedRows: number; totalDays: number; sampled: boolean }> {
+    const season = options.season || new Date().getFullYear();
+
+    // Calculate total days in range
+    const startMs = new Date(options.startDate).getTime();
+    const endMs = new Date(options.endDate).getTime();
+    const totalDays = Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
+
+    // Fetch first 3-day sample to estimate
+    let sampleEndDate = addDays(options.startDate, 2);
+    const maxEnd = new Date(options.endDate);
+    if (new Date(sampleEndDate) > maxEnd) {
+        sampleEndDate = options.endDate;
+    }
+
+    console.log(`📊 Previewing data from ${options.startDate} to ${sampleEndDate} (sample)...`);
+
+    const url = buildStatcastUrl({
+        startDate: options.startDate,
+        endDate: sampleEndDate,
+        season,
+    });
+
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'PitchTracker/1.0',
+                'Accept': 'text/csv',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch preview: ${response.status}`);
+        }
+
+        const csvText = await response.text();
+        const rows = parseCSV(csvText);
+        const sampleDays = Math.min(3, totalDays);
+
+        // Filter valid rows (those with pitcher name and pitch type)
+        const validRows = rows.filter(row => row.player_name && row.pitch_type);
+        const sampleRowCount = validRows.length;
+
+        // Extrapolate to full date range (rough estimate)
+        let estimatedRows: number;
+        if (sampleDays >= totalDays) {
+            // We sampled the entire range
+            estimatedRows = sampleRowCount;
+        } else {
+            // Extrapolate based on sample
+            const avgPerDay = sampleRowCount / sampleDays;
+            estimatedRows = Math.round(avgPerDay * totalDays);
+        }
+
+        console.log(`   Sample: ${sampleRowCount} rows in ${sampleDays} days`);
+        console.log(`   Estimated total: ~${estimatedRows.toLocaleString()} rows over ${totalDays} days`);
+
+        return {
+            estimatedRows,
+            totalDays,
+            sampled: sampleDays < totalDays,
+        };
+    } catch (error) {
+        console.error('Preview error:', error);
+        throw error;
     }
 }
 

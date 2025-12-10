@@ -1,18 +1,20 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Plus, Search, Bell } from 'lucide-react';
+import { Plus, Search, Bell, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import Sidebar from '@/components/Sidebar';
 import StatsCard from '@/components/StatsCard';
 import MovementChart from '@/components/MovementChart';
 import RecentPitches from '@/components/RecentPitches';
 import SimilarPros from '@/components/SimilarPros';
-import AIInsight from '@/components/AIInsight';
+import AIChat from '@/components/AIChat';
 import BenchmarkTable from '@/components/BenchmarkTable';
 import PitchForm, { PitchData } from '@/components/PitchForm';
 import ArsenalTable from '@/components/ArsenalTable';
 import PercentileBar from '@/components/PercentileBar';
+import { authGet, authPost, authPut, authDelete } from '@/lib/auth-fetch';
 
 interface Pitcher {
     id: number;
@@ -84,29 +86,50 @@ interface DevelopmentPlan {
     similarPitchers: string[];
 }
 
+// Helper function to get pitch type colors
+const getPitchColor = (pitchType: string): string => {
+    const type = pitchType.toLowerCase();
+    if (type.includes('fastball') || type.includes('4-seam')) return 'rgba(239, 68, 68, 0.4)';
+    if (type.includes('slider')) return 'rgba(59, 130, 246, 0.4)';
+    if (type.includes('curve')) return 'rgba(34, 197, 94, 0.4)';
+    if (type.includes('change')) return 'rgba(168, 85, 247, 0.4)';
+    if (type.includes('sinker')) return 'rgba(249, 115, 22, 0.4)';
+    if (type.includes('cutter')) return 'rgba(14, 165, 233, 0.4)';
+    if (type.includes('splitter')) return 'rgba(236, 72, 153, 0.4)';
+    return 'rgba(245, 158, 11, 0.4)';
+};
+
 export default function DashboardPage() {
     const params = useParams();
     const router = useRouter();
+    const { user, loading: authLoading } = useAuth();
     const pitcherId = parseInt(params.pitcherId as string);
 
     const [pitcher, setPitcher] = useState<Pitcher | null>(null);
     const [pitches, setPitches] = useState<Pitch[]>([]);
     const [comparisons, setComparisons] = useState<Comparison[]>([]);
     const [similarPitchers, setSimilarPitchers] = useState<SimilarPitcher[]>([]);
-    const [developmentPlan, setDevelopmentPlan] = useState<DevelopmentPlan | null>(null);
 
     const [isLoadingPitcher, setIsLoadingPitcher] = useState(true);
     const [isLoadingPitches, setIsLoadingPitches] = useState(true);
     const [isLoadingComparisons, setIsLoadingComparisons] = useState(false);
-    const [isLoadingAI, setIsLoadingAI] = useState(false);
 
     const [showPitchForm, setShowPitchForm] = useState(false);
     const [editingPitch, setEditingPitch] = useState<PitchData | null>(null);
     const [activeTab, setActiveTab] = useState<'dashboard' | 'arsenal'>('dashboard');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showNotifications, setShowNotifications] = useState(false);
+
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/login');
+        }
+    }, [user, authLoading, router]);
 
     // Fetch pitcher info
     useEffect(() => {
-        fetch(`/api/pitchers/${pitcherId}`)
+        authGet(`/api/pitchers/${pitcherId}`)
             .then(res => res.json())
             .then(data => {
                 if (data.error) {
@@ -122,7 +145,7 @@ export default function DashboardPage() {
     // Fetch pitches
     const fetchPitches = useCallback(() => {
         setIsLoadingPitches(true);
-        fetch(`/api/pitches?pitcher_id=${pitcherId}`)
+        authGet(`/api/pitches?pitcher_id=${pitcherId}`)
             .then(res => res.json())
             .then(data => {
                 setPitches(Array.isArray(data) ? data : []);
@@ -139,7 +162,7 @@ export default function DashboardPage() {
     useEffect(() => {
         if (pitches.length > 0) {
             setIsLoadingComparisons(true);
-            fetch(`/api/compare/${pitcherId}`)
+            authGet(`/api/compare/${pitcherId}`)
                 .then(res => res.json())
                 .then(data => {
                     setComparisons(data.comparisons || []);
@@ -147,7 +170,7 @@ export default function DashboardPage() {
                 })
                 .catch(() => setIsLoadingComparisons(false));
 
-            fetch(`/api/similar/${pitcherId}`)
+            authGet(`/api/similar/${pitcherId}`)
                 .then(res => res.json())
                 .then(data => {
                     setSimilarPitchers(data.overall || []);
@@ -156,37 +179,13 @@ export default function DashboardPage() {
         }
     }, [pitcherId, pitches.length]);
 
-    // Generate AI plan
-    const generateAIPlan = async () => {
-        setIsLoadingAI(true);
-        try {
-            const res = await fetch(`/api/ai-plan/${pitcherId}`);
-            const data = await res.json();
-            if (!data.error) {
-                setDevelopmentPlan(data);
-            }
-        } catch (error) {
-            console.error('Error generating AI plan:', error);
-        } finally {
-            setIsLoadingAI(false);
-        }
-    };
-
     // Handle pitch submission
     const handlePitchSubmit = async (pitch: PitchData) => {
         try {
             if (pitch.id) {
-                await fetch(`/api/pitches/${pitch.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(pitch),
-                });
+                await authPut(`/api/pitches/${pitch.id}`, pitch);
             } else {
-                await fetch('/api/pitches', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(pitch),
-                });
+                await authPost('/api/pitches', pitch);
             }
             fetchPitches();
             setShowPitchForm(false);
@@ -199,7 +198,7 @@ export default function DashboardPage() {
     // Handle pitch delete
     const handleDeletePitch = async (id: number) => {
         try {
-            const res = await fetch(`/api/pitches/${id}`, { method: 'DELETE' });
+            const res = await authDelete(`/api/pitches/${id}`);
             if (res.ok) {
                 fetchPitches();
             }
@@ -221,10 +220,35 @@ export default function DashboardPage() {
 
     // Prepare movement chart data
     const userPitchMovement = comparisons.map(c => ({
-        pitchType: c.pitchType,
+        pitchType: c.pitchTypeName,
         avgHBreak: c.userStats.avgHBreak,
         avgVBreak: c.userStats.avgVBreak,
     }));
+
+    // Prepare MLB movement data from actual comparisons
+    const mlbPitchMovement = comparisons.map(c => ({
+        pitchType: c.pitchTypeName,
+        avgHBreak: c.mlbStats.avgHBreak,
+        avgVBreak: c.mlbStats.avgVBreak,
+        color: getPitchColor(c.pitchTypeName),
+    }));
+
+    const searchResults = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+        if (!term) return [];
+        return pitches
+            .filter(p => p.pitch_type.toLowerCase().includes(term))
+            .slice(0, 5);
+    }, [pitches, searchTerm]);
+
+    // Show loading while checking auth
+    if (authLoading || !user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+            </div>
+        );
+    }
 
     if (isLoadingPitcher) {
         return (
@@ -251,18 +275,57 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-4">
                         {/* Search */}
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                             <input
                                 type="text"
                                 placeholder="Search..."
-                                className="pl-10 pr-4 py-2 bg-white/70 border border-gray-200 rounded-xl text-sm w-48 focus:outline-none focus:border-amber-400"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10 pr-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm w-52 transition-all duration-200 shadow-sm hover:border-amber-200 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-300 focus:bg-white"
                             />
+                            {searchTerm && (
+                                <div className="absolute mt-2 w-full bg-white border border-amber-100 rounded-xl shadow-lg z-20 overflow-hidden">
+                                    {searchResults.length === 0 ? (
+                                        <div className="px-3 py-2 text-sm text-gray-500">No matches</div>
+                                    ) : (
+                                        searchResults.map((p) => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => {
+                                                    router.push(`/dashboard/${pitcherId}`);
+                                                    setSearchTerm('');
+                                                }}
+                                                className="w-full text-left px-3 py-2 hover:bg-amber-50 text-sm text-gray-700 flex justify-between"
+                                            >
+                                                <span>{p.pitch_type}</span>
+                                                <span className="text-gray-400">{p.velocity_mph ? `${p.velocity_mph.toFixed(1)} mph` : ''}</span>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Notifications */}
-                        <button className="p-2 bg-white/70 border border-gray-200 rounded-xl hover:bg-white transition-colors">
-                            <Bell size={20} className="text-gray-500" />
-                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowNotifications((v) => !v)}
+                                className="p-2 bg-white/80 border border-gray-200 rounded-xl hover:bg-white shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-300 active:scale-95"
+                            >
+                                <Bell size={20} className="text-gray-500" />
+                            </button>
+                            {showNotifications && (
+                                <div className="absolute right-0 mt-2 w-56 bg-white border border-amber-100 rounded-xl shadow-lg z-20">
+                                    <div className="px-4 py-3 border-b border-amber-50">
+                                        <p className="text-sm font-semibold text-gray-800">Notifications</p>
+                                        <p className="text-xs text-gray-500">No new alerts</p>
+                                    </div>
+                                    <div className="px-4 py-3 text-xs text-gray-500">
+                                        Tip: Record pitches to see alerts here.
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Profile */}
                         <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-white font-bold">
@@ -276,8 +339,8 @@ export default function DashboardPage() {
                     <button
                         onClick={() => setActiveTab('dashboard')}
                         className={`px-4 py-2 rounded-xl font-medium transition-all ${activeTab === 'dashboard'
-                            ? 'bg-amber-500 text-white shadow-md'
-                            : 'bg-white/50 text-gray-600 hover:bg-white/80'
+                            ? 'bg-amber-700 text-white shadow-lg border border-amber-600/30'
+                            : 'bg-white/70 text-gray-700 hover:bg-white/90 border border-white/50'
                             }`}
                     >
                         Overview
@@ -285,8 +348,8 @@ export default function DashboardPage() {
                     <button
                         onClick={() => setActiveTab('arsenal')}
                         className={`px-4 py-2 rounded-xl font-medium transition-all ${activeTab === 'arsenal'
-                            ? 'bg-amber-500 text-white shadow-md'
-                            : 'bg-white/50 text-gray-600 hover:bg-white/80'
+                            ? 'bg-amber-700 text-white shadow-lg border border-amber-600/30'
+                            : 'bg-white/70 text-gray-700 hover:bg-white/90 border border-white/50'
                             }`}
                     >
                         My Arsenal
@@ -325,7 +388,32 @@ export default function DashboardPage() {
                             </div>
 
                             {/* Movement Chart */}
-                            <MovementChart userPitches={userPitchMovement} />
+                            {comparisons.length > 0 ? (
+                                <MovementChart
+                                    userPitches={userPitchMovement}
+                                    mlbData={mlbPitchMovement}
+                                    title="Movement Profile vs MLB"
+                                />
+                            ) : pitches.length > 0 ? (
+                                <div className="glass-card p-6">
+                                    <div className="flex justify-center items-center h-[300px] text-gray-500">
+                                        <div className="text-center">
+                                            <div className="loading-spinner mb-3" />
+                                            <p>Loading MLB comparison data...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="glass-card p-6">
+                                    <h3 className="font-semibold text-gray-800 mb-4">Movement Profile</h3>
+                                    <div className="flex justify-center items-center h-[300px] text-gray-500">
+                                        <div className="text-center">
+                                            <p className="mb-2">No pitch data yet</p>
+                                            <p className="text-sm">Add pitches to see your movement profile</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Percentiles */}
                             {comparisons.length > 0 && (
@@ -393,7 +481,7 @@ export default function DashboardPage() {
                                     setEditingPitch(null);
                                     setShowPitchForm(true);
                                 }}
-                                className="btn-primary w-full flex items-center justify-center gap-2"
+                                className="btn-primary w-full flex items-center justify-center gap-2 text-base py-4 shadow-lg shadow-amber-400/30 hover:shadow-amber-400/40 transition-all duration-200"
                             >
                                 <Plus size={20} />
                                 Add New Pitch
@@ -405,11 +493,13 @@ export default function DashboardPage() {
                             {/* Similar Pros */}
                             <SimilarPros pitchers={similarPitchers} isLoading={isLoadingComparisons} />
 
-                            {/* AI Insight */}
-                            <AIInsight
-                                plan={developmentPlan}
-                                isLoading={isLoadingAI}
-                                onGenerate={generateAIPlan}
+                            {/* AI Chat */}
+                            <AIChat
+                                pitcher={pitcher ? {
+                                    id: pitcher.id,
+                                    name: pitcher.name,
+                                    level: pitcher.level || undefined
+                                } : undefined}
                             />
                         </div>
                     </div>

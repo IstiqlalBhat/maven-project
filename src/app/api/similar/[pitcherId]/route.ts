@@ -1,16 +1,53 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
-import { PITCH_TYPES } from '@/lib/fetch-mlb-data';
+import { requireUserAuth } from '@/lib/auth-middleware';
+import { apiRateLimiter } from '@/lib/rate-limiter';
+import { parseIdParam } from '@/lib/validation';
 
 interface RouteParams {
     params: Promise<{ pitcherId: string }>;
 }
 
+/**
+ * Verify that the authenticated user owns the specified pitcher
+ */
+async function verifyPitcherOwnership(pitcherId: number, uid: string): Promise<boolean> {
+    const result = await query(
+        'SELECT id FROM user_pitchers WHERE id = $1 AND (firebase_uid = $2 OR firebase_uid IS NULL)',
+        [pitcherId, uid]
+    );
+    return result.rows.length > 0;
+}
+
 // GET /api/similar/[pitcherId] - Find MLB pitchers with similar arsenal
 export async function GET(request: Request, { params }: RouteParams) {
+    // Rate limiting
+    const rateLimitResponse = apiRateLimiter(request);
+    if (rateLimitResponse) {
+        return rateLimitResponse;
+    }
+
+    // Require user authentication
+    const authResult = await requireUserAuth();
+    if (authResult instanceof NextResponse) {
+        return authResult;
+    }
+    const { uid } = authResult;
+
     try {
         const { pitcherId } = await params;
-        const id = parseInt(pitcherId);
+
+        // Validate ID
+        const id = parseIdParam(pitcherId);
+        if (id instanceof NextResponse) {
+            return id;
+        }
+
+        // Verify ownership
+        const isOwner = await verifyPitcherOwnership(id, uid);
+        if (!isOwner) {
+            return NextResponse.json({ error: 'Pitcher not found' }, { status: 404 });
+        }
 
         // Get user's pitches
         const userPitchesResult = await query(
@@ -37,32 +74,22 @@ export async function GET(request: Request, { params }: RouteParams) {
             }, { status: 400 });
         }
 
-        // Find similar MLB pitchers using aggregate stats
+        // Find similar MLB pitchers using pre-calculated stats from materialized view
+        // This is much faster than aggregating 100k+ rows on every request
         const similarResult = await query(
-            `WITH pitcher_stats AS (
-        SELECT 
-          pitcher_name,
-          AVG(release_speed) as avg_velo,
-          AVG(release_spin_rate) as avg_spin,
-          COUNT(*) as pitch_count
-        FROM mlb_pitches
-        WHERE release_speed IS NOT NULL AND release_spin_rate IS NOT NULL
-        GROUP BY pitcher_name
-        HAVING COUNT(*) >= 10
-      )
-      SELECT 
-        pitcher_name as name,
-        avg_velo,
-        avg_spin,
-        pitch_count,
-        -- Euclidean distance calculation (normalized)
-        SQRT(
-          POWER((avg_velo - $1) / 10.0, 2) + 
-          POWER((avg_spin - $2) / 500.0, 2)
-        ) as distance
-      FROM pitcher_stats
-      ORDER BY distance ASC
-      LIMIT 5`,
+            `SELECT 
+                pitcher_name as name,
+                avg_velo,
+                avg_spin,
+                pitch_count,
+                -- Euclidean distance calculation (normalized)
+                SQRT(
+                    POWER((avg_velo - $1) / 10.0, 2) + 
+                    POWER((avg_spin - $2) / 500.0, 2)
+                ) as distance
+            FROM mv_pitcher_stats
+            ORDER BY distance ASC
+            LIMIT 5`,
             [userAvgVelo || 90, userAvgSpin || 2200]
         );
 

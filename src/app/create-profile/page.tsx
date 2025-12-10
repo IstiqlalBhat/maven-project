@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { authPost } from '@/lib/auth-fetch';
+import { useAuth } from '@/context/AuthContext';
 
 export default function CreateProfilePage() {
     const router = useRouter();
+    const { user, loading: authLoading } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
     const [formData, setFormData] = useState({
         name: '',
         age: '',
@@ -15,26 +19,37 @@ export default function CreateProfilePage() {
         primary_pitch: 'Fastball',
     });
 
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/login');
+        }
+    }, [user, authLoading, router]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        setError('');
 
         try {
-            const response = await fetch('/api/pitchers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...formData,
-                    age: formData.age ? parseInt(formData.age) : null,
-                }),
+            const response = await authPost('/api/pitchers', {
+                ...formData,
+                age: formData.age ? parseInt(formData.age) : null,
             });
 
             if (response.ok) {
                 const pitcher = await response.json();
                 router.push(`/dashboard/${pitcher.id}`);
+            } else if (response.status === 401) {
+                setError('Please sign in to create a profile.');
+                router.push('/login');
+            } else {
+                const data = await response.json();
+                setError(data.error || 'Failed to create profile');
             }
         } catch (error) {
             console.error('Error creating profile:', error);
+            setError('An error occurred. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -43,6 +58,15 @@ export default function CreateProfilePage() {
     const handleChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
+
+    // Show loading while checking auth
+    if (authLoading || !user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center px-6 py-12">
@@ -67,6 +91,13 @@ export default function CreateProfilePage() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
+                        {/* Error Display */}
+                        {error && (
+                            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">
+                                {error}
+                            </div>
+                        )}
+
                         {/* Name */}
                         <div>
                             <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -110,8 +141,8 @@ export default function CreateProfilePage() {
                                         type="button"
                                         onClick={() => handleChange('throws', hand)}
                                         className={`py-3 px-4 rounded-xl font-medium transition-all ${formData.throws === hand
-                                                ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-md'
-                                                : 'bg-white/80 border border-neutral-200 text-neutral-700 hover:border-amber-300'
+                                            ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-md'
+                                            : 'bg-white/80 border border-neutral-200 text-neutral-700 hover:border-amber-300'
                                             }`}
                                     >
                                         {hand === 'R' ? 'Right-Handed' : 'Left-Handed'}

@@ -9,15 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/genai": "^1.32.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.2",
+    "@types/pg-copy-streams": "^1.2.5",
     "@types/three": "^0.181.0",
     "chart.js": "^4.5.1",
     "firebase": "^12.6.0",
     "lucide-react": "^0.556.0",
     "next": "16.0.8",
-    "openai": "^6.10.0",
     "pg": "^8.16.3",
+    "pg-copy-streams": "^7.0.0",
     "react": "19.2.1",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.1",
@@ -26,7 +28,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/pg": "^8.15.6",
     "@types/react": "^19",

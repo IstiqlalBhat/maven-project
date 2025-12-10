@@ -1,21 +1,64 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/postgres';
+import { requireUserAuth } from '@/lib/auth-middleware';
+import { apiRateLimiter } from '@/lib/rate-limiter';
+import { safeParseInt, validatePitchData } from '@/lib/validation';
+
+/**
+ * Verify that the authenticated user owns the specified pitcher
+ */
+async function verifyPitcherOwnership(pitcherId: number, uid: string): Promise<boolean> {
+    const result = await query(
+        'SELECT id FROM user_pitchers WHERE id = $1 AND (firebase_uid = $2 OR firebase_uid IS NULL)',
+        [pitcherId, uid]
+    );
+    return result.rows.length > 0;
+}
 
 // GET /api/pitches - List pitches (optional filter by pitcher_id)
 export async function GET(request: Request) {
+    // Rate limiting
+    const rateLimitResponse = apiRateLimiter(request);
+    if (rateLimitResponse) {
+        return rateLimitResponse;
+    }
+
+    // Require user authentication
+    const authResult = await requireUserAuth();
+    if (authResult instanceof NextResponse) {
+        return authResult;
+    }
+    const { uid } = authResult;
+
     try {
         const { searchParams } = new URL(request.url);
-        const pitcherId = searchParams.get('pitcher_id');
+        const pitcherIdParam = searchParams.get('pitcher_id');
 
         let result;
-        if (pitcherId) {
+        if (pitcherIdParam) {
+            const pitcherId = safeParseInt(pitcherIdParam);
+            if (pitcherId === null) {
+                return NextResponse.json({ error: 'Invalid pitcher_id' }, { status: 400 });
+            }
+
+            // Verify ownership of the pitcher
+            const isOwner = await verifyPitcherOwnership(pitcherId, uid);
+            if (!isOwner) {
+                return NextResponse.json({ error: 'Pitcher not found' }, { status: 404 });
+            }
+
             result = await query(
                 'SELECT * FROM user_pitches WHERE pitcher_id = $1 ORDER BY date DESC, created_at DESC',
-                [parseInt(pitcherId)]
+                [pitcherId]
             );
         } else {
+            // Get pitches for all user's pitchers
             result = await query(
-                'SELECT * FROM user_pitches ORDER BY created_at DESC'
+                `SELECT p.* FROM user_pitches p
+                 JOIN user_pitchers pit ON p.pitcher_id = pit.id
+                 WHERE pit.firebase_uid = $1 OR pit.firebase_uid IS NULL
+                 ORDER BY p.created_at DESC`,
+                [uid]
             );
         }
 
@@ -28,61 +71,55 @@ export async function GET(request: Request) {
 
 // POST /api/pitches - Add a new pitch
 export async function POST(request: Request) {
+    // Rate limiting
+    const rateLimitResponse = apiRateLimiter(request);
+    if (rateLimitResponse) {
+        return rateLimitResponse;
+    }
+
+    // Require user authentication
+    const authResult = await requireUserAuth();
+    if (authResult instanceof NextResponse) {
+        return authResult;
+    }
+    const { uid } = authResult;
+
     try {
         const body = await request.json();
-        const {
-            pitcher_id,
-            pitch_type,
-            velocity_mph,
-            spin_rate,
-            horizontal_break,
-            vertical_break,
-            date,
-            notes
-        } = body;
+        const { pitcher_id } = body;
 
         // Required field validation
-        if (!pitcher_id || !pitch_type) {
+        if (!pitcher_id) {
             return NextResponse.json(
-                { error: 'pitcher_id and pitch_type are required' },
+                { error: 'pitcher_id is required' },
                 { status: 400 }
             );
         }
 
-        // Pitch type validation
-        if (typeof pitch_type !== 'string' || pitch_type.length > 50) {
+        const pitcherId = safeParseInt(String(pitcher_id));
+        if (pitcherId === null) {
             return NextResponse.json(
-                { error: 'pitch_type must be a string of 50 characters or less' },
+                { error: 'pitcher_id must be a valid integer' },
                 { status: 400 }
             );
         }
 
-        // Numeric range validation
-        if (velocity_mph !== undefined && velocity_mph !== null) {
-            if (typeof velocity_mph !== 'number' || velocity_mph < 0 || velocity_mph > 120) {
-                return NextResponse.json(
-                    { error: 'velocity_mph must be between 0 and 120' },
-                    { status: 400 }
-                );
-            }
+        // Verify ownership of the pitcher
+        const isOwner = await verifyPitcherOwnership(pitcherId, uid);
+        if (!isOwner) {
+            return NextResponse.json({ error: 'Pitcher not found' }, { status: 404 });
         }
 
-        if (spin_rate !== undefined && spin_rate !== null) {
-            if (typeof spin_rate !== 'number' || spin_rate < 0 || spin_rate > 5000) {
-                return NextResponse.json(
-                    { error: 'spin_rate must be between 0 and 5000' },
-                    { status: 400 }
-                );
-            }
-        }
-
-        // Notes length validation
-        if (notes && notes.length > 2000) {
+        // Validate pitch data
+        const validation = validatePitchData(body);
+        if (!validation.valid) {
             return NextResponse.json(
-                { error: 'notes must be 2000 characters or less' },
+                { error: validation.error },
                 { status: 400 }
             );
         }
+
+        const { pitch_type, velocity_mph, spin_rate, horizontal_break, vertical_break, date, notes } = validation.data!;
 
         const result = await query(
             `INSERT INTO user_pitches 
@@ -90,14 +127,14 @@ export async function POST(request: Request) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
             [
-                pitcher_id,
-                pitch_type.trim(),
-                velocity_mph || null,
-                spin_rate || null,
-                horizontal_break || null,
-                vertical_break || null,
-                date || null,
-                notes?.trim() || null
+                pitcherId,
+                pitch_type,
+                velocity_mph,
+                spin_rate,
+                horizontal_break,
+                vertical_break,
+                date,
+                notes
             ]
         );
 

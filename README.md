@@ -6,8 +6,10 @@ A full-stack pitch tracking dashboard that compares your pitches against real ML
 
 - 📊 **Track Your Arsenal** - Record velocity, spin rate, and movement for every pitch
 - 🎯 **MLB Benchmarks** - See your percentile rankings vs real Statcast data from Baseball Savant
-- 🧠 **AI Development** - Get personalized recommendations to improve based on your metrics
+- 🤖 **Maven AI Coach** - Chat with an elite pitching coach powered by Google Gemini that knows your exact metrics
 - 👥 **Similar Pros** - Find MLB pitchers with similar profiles to yours
+
+[View full AI capabilities documentation](AIfeatures.md)
 
 ## Tech Stack
 

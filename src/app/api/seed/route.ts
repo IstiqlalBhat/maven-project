@@ -1,9 +1,23 @@
 import { NextResponse } from 'next/server';
 import { initializeDatabase, query } from '@/lib/postgres';
 import { fetchAndSeedMLBData, hasMLBData, getMLBDataStats } from '@/lib/fetch-mlb-data';
+import { requireAdminAuth } from '@/lib/auth-middleware';
+import { heavyOperationRateLimiter } from '@/lib/rate-limiter';
 
 // POST /api/seed - Seed the database with MLB data
 export async function POST(request: Request) {
+    // Rate limiting for heavy operations
+    const rateLimitResponse = heavyOperationRateLimiter(request);
+    if (rateLimitResponse) {
+        return rateLimitResponse;
+    }
+
+    // Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+        return authError;
+    }
+
     try {
         const body = await request.json().catch(() => ({}));
         const {
@@ -27,9 +41,9 @@ export async function POST(request: Request) {
             });
         }
 
-        // Clear existing data if force seeding
+        // Clear existing data if force seeding (TRUNCATE is much faster than DELETE)
         if (force && hasData) {
-            await query('DELETE FROM mlb_pitches');
+            await query('TRUNCATE TABLE mlb_pitches RESTART IDENTITY');
         }
 
         // Fetch and seed data
@@ -78,6 +92,52 @@ export async function GET() {
         console.error('Error checking seed status:', error);
         return NextResponse.json({
             error: 'Failed to check seed status',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
+    }
+}
+
+// DELETE /api/seed - Clear all MLB data
+export async function DELETE(request: Request) {
+    // Rate limiting for heavy operations
+    const rateLimitResponse = heavyOperationRateLimiter(request);
+    if (rateLimitResponse) {
+        return rateLimitResponse;
+    }
+
+    // Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+        return authError;
+    }
+
+    try {
+        await initializeDatabase();
+
+        const hasData = await hasMLBData();
+        if (!hasData) {
+            return NextResponse.json({
+                message: 'No data to delete.',
+                deleted: false,
+            });
+        }
+
+        // Use TRUNCATE for much faster deletion (vs DELETE which logs each row)
+        // RESTART IDENTITY resets any associated sequences
+        // CASCADE handles dependent objects
+        await query('TRUNCATE TABLE mlb_pitches RESTART IDENTITY');
+
+        // Refresh the materialized view to reflect empty state
+        await query('REFRESH MATERIALIZED VIEW mv_pitcher_stats');
+
+        return NextResponse.json({
+            message: 'All MLB data has been deleted.',
+            deleted: true,
+        });
+    } catch (error) {
+        console.error('Error deleting data:', error);
+        return NextResponse.json({
+            error: 'Failed to delete data',
             details: error instanceof Error ? error.message : 'Unknown error'
         }, { status: 500 });
     }

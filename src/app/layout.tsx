@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import LiquidGlassBackgroundClient from "@/components/LiquidGlassBackgroundClient";
 
 export const metadata: Metadata = {
   title: "Maven Arsenal | Professional Pitch Tracking",
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <LiquidGlassBackgroundClient variant="amber" />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

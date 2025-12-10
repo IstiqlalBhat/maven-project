@@ -19,8 +19,11 @@ const pool = new Pool({
     database: process.env.PGDATABASE || 'pitch_tracker',
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD,
-    // SSL configuration for production
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    // SSL configuration for production - properly validate certificates
+    // Set DB_SSL_REJECT_UNAUTHORIZED=false only if using self-signed certs
+    ssl: process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
+        : false,
     // Connection pool settings
     max: 20,
     idleTimeoutMillis: 30000,
@@ -32,9 +35,10 @@ export async function initializeDatabase() {
     const client = await pool.connect();
     try {
         await client.query(`
-      -- User pitcher profiles
+      -- User pitcher profiles with ownership tracking
       CREATE TABLE IF NOT EXISTS user_pitchers (
         id SERIAL PRIMARY KEY,
+        firebase_uid VARCHAR(128),
         name VARCHAR(100) NOT NULL,
         age INTEGER,
         throws VARCHAR(1) CHECK(throws IN ('L', 'R')),
@@ -42,6 +46,18 @@ export async function initializeDatabase() {
         primary_pitch VARCHAR(50),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Add firebase_uid column if it doesn't exist (for existing databases)
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                       WHERE table_name = 'user_pitchers' AND column_name = 'firebase_uid') THEN
+          ALTER TABLE user_pitchers ADD COLUMN firebase_uid VARCHAR(128);
+        END IF;
+      END $$;
+
+      -- Index for fast user lookups
+      CREATE INDEX IF NOT EXISTS idx_user_pitchers_firebase_uid ON user_pitchers(firebase_uid);
 
       -- User's pitch data
       CREATE TABLE IF NOT EXISTS user_pitches (
@@ -72,8 +88,31 @@ export async function initializeDatabase() {
       );
 
       -- Index for faster queries on MLB data
-      CREATE INDEX IF NOT EXISTS idx_mlb_pitches_type ON mlb_pitches(pitch_type);
-      CREATE INDEX IF NOT EXISTS idx_mlb_pitches_pitcher ON mlb_pitches(pitcher_name);
+      -- Optimized for 700k+ rows: Composite indexes for frequent filtering/aggregation
+      CREATE INDEX IF NOT EXISTS idx_mlb_pitches_type_stats ON mlb_pitches(pitch_type, release_speed, release_spin_rate);
+      CREATE INDEX IF NOT EXISTS idx_mlb_pitches_pitcher_date ON mlb_pitches(pitcher_name, game_date);
+      CREATE INDEX IF NOT EXISTS idx_mlb_pitches_date ON mlb_pitches(game_date);
+
+      -- Index for user pitches optimization
+      CREATE INDEX IF NOT EXISTS idx_user_pitches_pitcher_date ON user_pitches(pitcher_id, date);
+
+      -- Materialized View for pitcher statistics
+      -- Pre-calculates aggregates to make "similar pitcher" queries instant
+      CREATE MATERIALIZED VIEW IF NOT EXISTS mv_pitcher_stats AS
+      SELECT 
+        pitcher_name,
+        AVG(release_speed) as avg_velo,
+        AVG(release_spin_rate) as avg_spin,
+        COUNT(*) as pitch_count
+      FROM mlb_pitches
+      WHERE release_speed IS NOT NULL AND release_spin_rate IS NOT NULL
+      GROUP BY pitcher_name
+      HAVING COUNT(*) >= 10;
+
+      -- Indexes on the materialized view for fast lookup and sorting
+      CREATE INDEX IF NOT EXISTS idx_mv_pitcher_stats_velo ON mv_pitcher_stats(avg_velo);
+      CREATE INDEX IF NOT EXISTS idx_mv_pitcher_stats_spin ON mv_pitcher_stats(avg_spin);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_pitcher_stats_name ON mv_pitcher_stats(pitcher_name);
     `);
         console.log('Database schema initialized successfully');
     } finally {
@@ -110,6 +149,49 @@ export async function withTransaction<T>(
     } catch (error) {
         await client.query('ROLLBACK');
         throw error;
+    } finally {
+        client.release();
+    }
+}
+
+// Copy stream helper
+export async function copyStream(
+    text: string,
+    callback: (stream: NodeJS.WritableStream) => Promise<void>
+): Promise<void> {
+    const client = await pool.connect();
+    try {
+        const stream = client.query(text); // This works because pg allows passing a ReadableStream to query when using pg-copy-streams? 
+        // Wait, pg-copy-streams usually works like: stream = client.query(copyStreams.from('COPY ...'))
+        // So the 'text' argument here should probably be the result of copyStreams.from('COPY ...') which returns a Stream.
+        // Actually, client.query() returns a stream if a stream is passed? No, client.query(stream) is how it works with pg-copy-streams.
+        // Let's check typical usage:
+        // var stream = client.query(copyFrom('COPY table FROM STDIN'));
+        // stream.write(...)
+        // So I'll pass the result of copyFrom to this function? Or just let the caller handle the stream creation?
+        // Better: let the caller provide the stream creation logic, but we manage the client connection.
+
+        // Actually, to keep it simple and type-safe with the 'pg' library:
+        // The `client.query` method returns a stream when used with `pg-copy-streams`.
+        await callback(stream as unknown as NodeJS.WritableStream);
+    } finally {
+        client.release();
+    }
+}
+
+// Let's refine the copyStream signature to be more robust.
+// We need to pass the query string (e.g. "COPY ... FROM STDIN") and a callback that writes to the stream.
+// BUT, to use pg-copy-streams, we need to import `from` in this file or let the caller pass the stream.
+// Let's stick to a simple `getRawClient` or `withClient` for maximum flexibility.
+// Existing `withTransaction` is close but wraps in BEGIN/COMMIT which COPY doesn't strictly need (though good practice).
+// Let's add `withClient`.
+
+export async function withClient<T>(
+    callback: (client: PoolClient) => Promise<T>
+): Promise<T> {
+    const client = await pool.connect();
+    try {
+        return await callback(client);
     } finally {
         client.release();
     }

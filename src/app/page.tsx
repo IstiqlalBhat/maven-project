@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Plus, BarChart2, Target, Brain, LogIn, UserPlus, Loader2 } from 'lucide-react';
+import { ArrowRight, Plus, BarChart2, Target, Brain, LogIn, UserPlus, Loader2, Trash2, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
+import { authGet, authDelete } from '@/lib/auth-fetch';
 
 interface Pitcher {
   id: number;
@@ -15,21 +16,49 @@ interface Pitcher {
 
 export default function LandingPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [pitchers, setPitchers] = useState<Pitcher[]>([]);
   const [isLoadingPitchers, setIsLoadingPitchers] = useState(true);
 
   useEffect(() => {
     if (user) {
-      fetch('/api/pitchers')
+      authGet('/api/pitchers')
         .then(res => res.json())
         .then(data => {
-          setPitchers(data);
+          if (Array.isArray(data)) {
+            setPitchers(data);
+          }
           setIsLoadingPitchers(false);
         })
         .catch(() => setIsLoadingPitchers(false));
     }
   }, [user]);
+
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const handleDeletePitcher = async (e: React.MouseEvent, pitcherId: number, pitcherName: string) => {
+    e.stopPropagation(); // Prevent navigation to dashboard
+
+    if (!confirm(`Are you sure you want to delete ${pitcherName}? This will also delete all their pitches and cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingId(pitcherId);
+    try {
+      const response = await authDelete(`/api/pitchers/${pitcherId}`);
+
+      if (response.ok) {
+        setPitchers(prev => prev.filter(p => p.id !== pitcherId));
+      } else {
+        alert('Failed to delete pitcher. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting pitcher:', error);
+      alert('Failed to delete pitcher. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (authLoading) {
     return (
@@ -115,6 +144,26 @@ export default function LandingPage() {
   // Authenticated View - Dashboard Home
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Header with user info and sign out */}
+      <header className="flex justify-between items-center px-6 py-4 border-b border-gray-200/50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+            <span className="text-xl">⚾</span>
+          </div>
+          <span className="font-bold text-gray-800">Maven Arsenal</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-600">{user.email}</span>
+          <button
+            onClick={signOut}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <LogOut size={16} />
+            Sign Out
+          </button>
+        </div>
+      </header>
+
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="text-center max-w-3xl mx-auto stagger-children">
           <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
@@ -151,12 +200,14 @@ export default function LandingPage() {
             </h3>
             <div className="glass-card divide-y divide-gray-100">
               {pitchers.map((pitcher) => (
-                <button
+                <div
                   key={pitcher.id}
-                  onClick={() => router.push(`/dashboard/${pitcher.id}`)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-amber-50/50 transition-colors text-left"
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-amber-50/50 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => router.push(`/dashboard/${pitcher.id}`)}
+                    className="flex items-center gap-3 flex-1 text-left"
+                  >
                     <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-white font-bold">
                       {pitcher.name.charAt(0)}
                     </div>
@@ -166,9 +217,23 @@ export default function LandingPage() {
                         {pitcher.throws === 'R' ? 'RHP' : 'LHP'} • {pitcher.level}
                       </p>
                     </div>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => handleDeletePitcher(e, pitcher.id, pitcher.name)}
+                      disabled={deletingId === pitcher.id}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Delete profile"
+                    >
+                      {deletingId === pitcher.id ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={18} />
+                      )}
+                    </button>
+                    <ArrowRight className="text-gray-400" size={20} />
                   </div>
-                  <ArrowRight className="text-gray-400" size={20} />
-                </button>
+                </div>
               ))}
             </div>
           </div>

@@ -48,5 +48,7 @@ next-env.d.ts
 *.md
 !README.md
 !readme.md
+!DOCUMENTATION.md
+!AIfeatures.md
 .claude
 *.claude

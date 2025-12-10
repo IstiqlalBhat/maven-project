@@ -64,7 +64,8 @@ function Baseball({ position, color, scale = 1, isUser = false }: {
       floatIntensity={0.3}
     >
       <mesh ref={meshRef} position={position} scale={scale}>
-        <sphereGeometry args={[0.15, 32, 32]} />
+        {/* Reduced sphere detail slightly to lighten GPU work */}
+        <sphereGeometry args={[0.15, 24, 24]} />
         {isUser ? (
           <MeshDistortMaterial
             color={color}
@@ -394,7 +395,7 @@ export default function PitchVisualization3D({
       <div className="h-[400px] rounded-xl overflow-hidden bg-neutral-950/50">
         <Canvas
           camera={{ position: [0, 0, 2.5], fov: 50 }}
-          dpr={[1, 2]}
+          dpr={[1, 1.5]}
         >
           <ambientLight intensity={0.5} />
           <pointLight position={[10, 10, 10]} intensity={1} />
@@ -427,4 +428,5 @@ export default function PitchVisualization3D({
     </div>
   );
 }
+
 

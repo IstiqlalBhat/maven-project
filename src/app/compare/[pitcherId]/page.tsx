@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { GitCompare, TrendingUp, Target, Award } from 'lucide-react';
+import { GitCompare, TrendingUp, Target, Award, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import PercentileBar from '@/components/PercentileBar';
 import SimilarPros from '@/components/SimilarPros';
+import { useAuth } from '@/context/AuthContext';
+import { authGet } from '@/lib/auth-fetch';
 
 interface Pitcher {
     id: number;
@@ -51,6 +53,7 @@ interface SimilarPitcher {
 export default function ComparePage() {
     const params = useParams();
     const router = useRouter();
+    const { user, loading: authLoading } = useAuth();
     const pitcherId = parseInt(params.pitcherId as string);
 
     const [pitcher, setPitcher] = useState<Pitcher | null>(null);
@@ -59,9 +62,17 @@ export default function ComparePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedPitchType, setSelectedPitchType] = useState<string | null>(null);
 
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/login');
+        }
+    }, [user, authLoading, router]);
+
     // Fetch pitcher info
     useEffect(() => {
-        fetch(`/api/pitchers/${pitcherId}`)
+        if (!user) return;
+        authGet(`/api/pitchers/${pitcherId}`)
             .then(res => res.json())
             .then(data => {
                 if (data.error) {
@@ -71,14 +82,15 @@ export default function ComparePage() {
                 setPitcher(data);
             })
             .catch(() => router.push('/'));
-    }, [pitcherId, router]);
+    }, [pitcherId, router, user]);
 
     // Fetch comparisons
     useEffect(() => {
+        if (!user) return;
         setIsLoading(true);
         Promise.all([
-            fetch(`/api/compare/${pitcherId}`).then(res => res.json()),
-            fetch(`/api/similar/${pitcherId}`).then(res => res.json())
+            authGet(`/api/compare/${pitcherId}`).then(res => res.json()),
+            authGet(`/api/similar/${pitcherId}`).then(res => res.json())
         ])
             .then(([compareData, similarData]) => {
                 setComparisons(compareData.comparisons || []);
@@ -89,7 +101,7 @@ export default function ComparePage() {
                 setIsLoading(false);
             })
             .catch(() => setIsLoading(false));
-    }, [pitcherId]);
+    }, [pitcherId, user]);
 
     const selectedComparison = comparisons.find(c => c.pitchType === selectedPitchType);
 
@@ -97,6 +109,15 @@ export default function ComparePage() {
     const overallPercentile = comparisons.length > 0
         ? Math.round(comparisons.reduce((sum, c) => sum + c.percentiles.velocity + c.percentiles.spinRate, 0) / (comparisons.length * 2))
         : 0;
+
+    // Show loading while checking auth
+    if (authLoading || !user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+            </div>
+        );
+    }
 
     if (isLoading && !pitcher) {
         return (

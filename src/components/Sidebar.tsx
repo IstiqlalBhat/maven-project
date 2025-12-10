@@ -82,7 +82,10 @@ export default function Sidebar({ pitcherId }: SidebarProps) {
 
             {/* Settings & Auth */}
             <div className="px-4 pb-6 space-y-1">
-                <button className="nav-item w-full">
+                <button
+                    onClick={() => router.push('/admin')}
+                    className="nav-item w-full"
+                >
                     <Settings size={20} />
                     {!collapsed && <span>Settings</span>}
                 </button>
