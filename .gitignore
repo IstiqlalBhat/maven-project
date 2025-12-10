@@ -52,3 +52,6 @@ next-env.d.ts
 !AIfeatures.md
 .claude
 *.claude
+.claude
+CLAUDE.md
+WHY_THIS_PROJECT_ROCKS.md
