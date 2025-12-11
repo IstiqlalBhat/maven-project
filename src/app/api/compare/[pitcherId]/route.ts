@@ -138,22 +138,49 @@ export async function GET(request: Request, { params }: RouteParams) {
             const stddevVelo = parseFloat(mlbStats.stddev_velo as string) || 3;
             const stddevSpin = parseFloat(mlbStats.stddev_spin as string) || 200;
 
-            // Calculate percentiles using z-score approximation
+            // Convert z-score to percentile using standard normal CDF approximation
+            // Uses the Abramowitz and Stegun approximation for the error function
+            const zScoreToPercentile = (z: number): number => {
+                // Clamp extreme z-scores to avoid overflow
+                const clampedZ = Math.max(-4, Math.min(4, z));
+
+                // Approximation of the standard normal CDF using error function
+                // CDF(z) = 0.5 * (1 + erf(z / sqrt(2)))
+                const a1 = 0.254829592;
+                const a2 = -0.284496736;
+                const a3 = 1.421413741;
+                const a4 = -1.453152027;
+                const a5 = 1.061405429;
+                const p = 0.3275911;
+
+                const sign = clampedZ < 0 ? -1 : 1;
+                const absZ = Math.abs(clampedZ) / Math.SQRT2;
+
+                const t = 1 / (1 + p * absZ);
+                const erf = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absZ * absZ);
+
+                const cdf = 0.5 * (1 + sign * erf);
+                return Math.min(99, Math.max(1, Math.round(cdf * 100)));
+            };
+
             // For velocity: higher is better
-            const veloZScore = (userStats.avgVelo - mlbAvgVelo) / stddevVelo;
-            const veloPercentile = Math.min(99, Math.max(1, Math.round(50 + veloZScore * 15)));
+            const veloZScore = stddevVelo > 0 ? (userStats.avgVelo - mlbAvgVelo) / stddevVelo : 0;
+            const veloPercentile = zScoreToPercentile(veloZScore);
 
             // For spin rate: higher is typically better for fastballs
-            const spinZScore = (userStats.avgSpin - mlbAvgSpin) / stddevSpin;
-            const spinPercentile = Math.min(99, Math.max(1, Math.round(50 + spinZScore * 15)));
+            const spinZScore = stddevSpin > 0 ? (userStats.avgSpin - mlbAvgSpin) / stddevSpin : 0;
+            const spinPercentile = zScoreToPercentile(spinZScore);
 
-            // For movement: use simple scaling based on MLB range
-            const hBreakPercentile = mlbAvgHBreak > 0
-                ? Math.min(99, Math.max(1, Math.round((userStats.avgHBreak / mlbAvgHBreak) * 50)))
-                : 50;
-            const vBreakPercentile = mlbAvgVBreak > 0
-                ? Math.min(99, Math.max(1, Math.round((userStats.avgVBreak / mlbAvgVBreak) * 50)))
-                : 50;
+            // For movement: calculate z-scores using stddev estimation from range
+            // Estimate stddev as ~(max - min) / 4 for normal distribution (covers ~95%)
+            const hBreakStddev = mlbAvgHBreak > 0 ? mlbAvgHBreak * 0.4 : 3; // ~40% of mean as stddev estimate
+            const vBreakStddev = mlbAvgVBreak > 0 ? mlbAvgVBreak * 0.4 : 5;
+
+            const hBreakZScore = hBreakStddev > 0 ? (userStats.avgHBreak - mlbAvgHBreak) / hBreakStddev : 0;
+            const vBreakZScore = vBreakStddev > 0 ? (userStats.avgVBreak - mlbAvgVBreak) / vBreakStddev : 0;
+
+            const hBreakPercentile = zScoreToPercentile(hBreakZScore);
+            const vBreakPercentile = zScoreToPercentile(vBreakZScore);
 
             comparisons.push({
                 pitchType,
