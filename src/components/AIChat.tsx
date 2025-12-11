@@ -27,7 +27,9 @@ export default function AIChat({ pitcher }: AIChatProps) {
     const [error, setError] = useState<string | null>(null);
     const [activeAiMessageId, setActiveAiMessageId] = useState<string | null>(null);
     const [renderedAiText, setRenderedAiText] = useState('');
+    const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const lastAnimatedMessageId = useRef<string | null>(null);
 
@@ -77,18 +79,19 @@ export default function AIChat({ pitcher }: AIChatProps) {
 
     // Auto-scroll to bottom on new messages
     const scrollToBottom = useCallback(() => {
+        if (!autoScrollEnabled) return;
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, []);
+    }, [autoScrollEnabled]);
 
     useEffect(() => {
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    // Keep the view pinned while the AI "renders" text
+    // Keep view pinned when a new AI response begins (but allow manual scrolling)
     useEffect(() => {
-        if (!activeAiMessageId) return;
+        if (!activeAiMessageId || !autoScrollEnabled) return;
         scrollToBottom();
-    }, [activeAiMessageId, renderedAiText, scrollToBottom]);
+    }, [activeAiMessageId, renderedAiText, autoScrollEnabled, scrollToBottom]);
 
     // Focus input on mount
     useEffect(() => {
@@ -153,6 +156,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
         setError(null);
         setActiveAiMessageId(null);
         setRenderedAiText('');
+        setAutoScrollEnabled(true);
 
         try {
             const { authPost } = await import('@/lib/auth-fetch');
@@ -200,12 +204,21 @@ export default function AIChat({ pitcher }: AIChatProps) {
         setError(null);
         setActiveAiMessageId(null);
         setRenderedAiText('');
+        setAutoScrollEnabled(true);
         sessionStorage.removeItem(storageKey);
+    };
+
+    const handleMessagesScroll = () => {
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        const threshold = 64;
+        const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+        setAutoScrollEnabled(distanceFromBottom <= threshold);
     };
 
     return (
         <div className="glass-card p-0 flex flex-col h-[520px] relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/60 to-white/30 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-white/60 to-white/30 pointer-events-none" />
             <div className="absolute -right-14 -top-14 w-48 h-48 bg-amber-200/40 blur-3xl rounded-full pointer-events-none" />
             <div className="absolute -left-10 bottom-0 w-40 h-40 bg-amber-100/35 blur-3xl rounded-full pointer-events-none" />
 
@@ -248,7 +261,13 @@ export default function AIChat({ pitcher }: AIChatProps) {
             </div>
 
             {/* Messages Container */}
-            <div className="relative flex-1 overflow-y-auto p-4 space-y-4 chat-messages-container" role="log" aria-live="polite">
+            <div
+                ref={messagesContainerRef}
+                onScroll={handleMessagesScroll}
+                className="relative flex-1 overflow-y-auto p-4 space-y-4 chat-messages-container"
+                role="log"
+                aria-live="polite"
+            >
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center px-4">
                         <div className="p-4 bg-amber-50 rounded-2xl mb-4 shadow-inner">
@@ -274,7 +293,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
                     messages.map((message, index) => {
                         const messageId = message.id || (message.timestamp ? new Date(message.timestamp).getTime().toString() : `${index}`);
                         const isActiveAi = message.role === 'model' && messageId === activeAiMessageId;
-                        const textToRender = isActiveAi ? (renderedAiText || getMessageText(message)) : getMessageText(message);
+                        const textToRender = isActiveAi ? renderedAiText : getMessageText(message);
 
                         return (
                             <div
@@ -284,7 +303,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
                                 <div
                                     className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm border ${message.role === 'user'
                                         ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white chat-bubble-user border-amber-200/60'
-                                        : 'bg-white/85 backdrop-blur-sm border-white/60 text-gray-700 chat-bubble-ai'
+                                        : 'bg-white/80 backdrop-blur-sm border-white/60 text-gray-700 chat-bubble-ai'
                                         }`}
                                 >
                                     <p className={`text-sm whitespace-pre-wrap leading-relaxed ${isActiveAi ? 'streaming-text' : ''}`}>
@@ -305,7 +324,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
                 {/* Loading indicator */}
                 {isLoading && (
                     <div className="flex justify-start animate-in">
-                        <div className="bg-white/85 backdrop-blur-sm border border-amber-100 rounded-2xl px-4 py-3 flex items-start gap-3 shadow-sm">
+                        <div className="bg-white/80 backdrop-blur-sm border border-amber-100 rounded-2xl px-4 py-3 flex items-start gap-3 shadow-sm">
                             <div className="typing-indicator mt-0.5">
                                 <span className="typing-dot" />
                                 <span className="typing-dot" />
