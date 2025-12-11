@@ -12,8 +12,8 @@ Quick guide for testing locally and deploying to production.
 
 | Environment | Supabase Project | Purpose |
 |-------------|------------------|---------|
-| **Testing** | `ttuwsoparxwtvwpldeko` | Local development |
-| **Production** | `ginjqjqzbpecymsknxea` | Live application |
+| **Testing** | `ttuldeko` | Local development |
+| **Production** | `gimsknxea` | Live application |
 
 ---
 
