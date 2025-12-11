@@ -111,10 +111,10 @@ export async function GET(request: Request, { params }: RouteParams) {
             const mlbStats = mlbStatsResult.rows[0];
 
             // Calculate user averages
-            const userVelos = pitches.filter(p => p.velocity_mph).map(p => parseFloat(p.velocity_mph));
-            const userSpins = pitches.filter(p => p.spin_rate).map(p => parseInt(p.spin_rate));
-            const userHBreaks = pitches.filter(p => p.horizontal_break != null).map(p => Math.abs(parseFloat(p.horizontal_break)));
-            const userVBreaks = pitches.filter(p => p.vertical_break != null).map(p => parseFloat(p.vertical_break));
+            const userVelos = pitches.filter(p => p.velocity_mph).map(p => parseFloat(p.velocity_mph as string));
+            const userSpins = pitches.filter(p => p.spin_rate).map(p => parseInt(p.spin_rate as string));
+            const userHBreaks = pitches.filter(p => p.horizontal_break != null).map(p => Math.abs(parseFloat(p.horizontal_break as string)));
+            const userVBreaks = pitches.filter(p => p.vertical_break != null).map(p => parseFloat(p.vertical_break as string));
 
             const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
