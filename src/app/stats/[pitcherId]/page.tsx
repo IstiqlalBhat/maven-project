@@ -289,57 +289,57 @@ export default function StatsPage() {
     }
 
     return (
-        <div className="min-h-screen flex">
+        <div className="min-h-screen flex flex-col lg:flex-row">
             <Sidebar pitcherId={pitcherId} />
 
-            <main className="flex-1 ml-64 p-8">
+            <main className="flex-1 main-content">
                 {/* Header */}
-                <header className="mb-8">
+                <header className="mb-6 lg:mb-8">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center">
-                            <BarChart2 className="text-white" size={20} />
+                        <div className="w-9 h-9 lg:w-10 lg:h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center">
+                            <BarChart2 className="text-white" size={18} />
                         </div>
-                        <h1 className="text-2xl font-bold text-neutral-800">Statistics</h1>
+                        <h1 className="text-xl lg:text-2xl font-bold text-neutral-800">Statistics</h1>
                     </div>
-                    <p className="text-neutral-500">Detailed stats for {pitcher?.name}</p>
+                    <p className="text-sm lg:text-base text-neutral-500">Detailed stats for {pitcher?.name}</p>
                 </header>
 
-                {/* Tabs */}
-                <div className="flex gap-2 mb-6">
+                {/* Tabs - Scrollable on mobile */}
+                <div className="flex gap-2 mb-4 lg:mb-6 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
                     <button
                         onClick={() => setActiveTab('overview')}
-                        className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${activeTab === 'overview'
+                        className={`px-3 lg:px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 whitespace-nowrap text-sm lg:text-base ${activeTab === 'overview'
                             ? 'bg-amber-500 text-white shadow-md'
                             : 'bg-white/50 text-neutral-600 hover:bg-white/80'
                             }`}
                     >
-                        <Activity size={18} />
+                        <Activity size={16} className="lg:w-[18px] lg:h-[18px]" />
                         Overview
                     </button>
                     <button
                         onClick={() => setActiveTab('charts')}
-                        className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${activeTab === 'charts'
+                        className={`px-3 lg:px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 whitespace-nowrap text-sm lg:text-base ${activeTab === 'charts'
                             ? 'bg-amber-500 text-white shadow-md'
                             : 'bg-white/50 text-neutral-600 hover:bg-white/80'
                             }`}
                     >
-                        <PieChart size={18} />
+                        <PieChart size={16} className="lg:w-[18px] lg:h-[18px]" />
                         Charts
                     </button>
                     <button
                         onClick={() => setActiveTab('comparison')}
-                        className={`px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${activeTab === 'comparison'
+                        className={`px-3 lg:px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-2 whitespace-nowrap text-sm lg:text-base ${activeTab === 'comparison'
                             ? 'bg-amber-500 text-white shadow-md'
                             : 'bg-white/50 text-neutral-600 hover:bg-white/80'
                             }`}
                     >
-                        <Radar size={18} />
-                        MLB Comparison
+                        <Radar size={16} className="lg:w-[18px] lg:h-[18px]" />
+                        <span className="hidden sm:inline">MLB </span>Comparison
                     </button>
                 </div>
 
                 {/* Overview Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:gap-4 mb-6 lg:mb-8">
                     <StatsCard
                         title="Avg. Velocity"
                         value={avgVelocity ? avgVelocity.toFixed(1) : '-'}
@@ -366,7 +366,7 @@ export default function StatsPage() {
                 </div>
 
                 {activeTab === 'overview' && (
-                    <div className="glass-card p-6 mb-8">
+                    <div className="glass-card p-4 lg:p-6 mb-6 lg:mb-8">
                         <ArsenalOverview
                             pitchTypes={pitchTypeStats}
                             totalPitches={pitches.length}
@@ -375,23 +375,23 @@ export default function StatsPage() {
                 )}
 
                 {activeTab === 'charts' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 lg:space-y-6">
                         {pitches.length === 0 ? (
-                            <div className="glass-card p-12 text-center">
-                                <BarChart2 size={48} className="mx-auto text-neutral-300 mb-4" />
-                                <h3 className="text-lg font-semibold text-neutral-800 mb-2">No Data Available</h3>
-                                <p className="text-neutral-500">Add some pitches to see your charts.</p>
+                            <div className="glass-card p-8 lg:p-12 text-center">
+                                <BarChart2 size={40} className="mx-auto text-neutral-300 mb-4 lg:w-12 lg:h-12" />
+                                <h3 className="text-base lg:text-lg font-semibold text-neutral-800 mb-2">No Data Available</h3>
+                                <p className="text-sm lg:text-base text-neutral-500">Add some pitches to see your charts.</p>
                             </div>
                         ) : (
                             <>
                                 {/* Row 1: Velocity Bar Chart + Pie Chart */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                                     <VelocityBarChart data={velocityBarData} />
                                     <PitchDistributionPie data={pitchDistributionData} />
                                 </div>
 
                                 {/* Row 2: Histograms */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                                     <VelocityHistogram data={velocityHistogramData} />
                                     <SpinHistogram data={spinHistogramData} />
                                 </div>
@@ -406,34 +406,71 @@ export default function StatsPage() {
                 )}
 
                 {activeTab === 'comparison' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 lg:space-y-6">
                         {comparisons.length === 0 ? (
-                            <div className="glass-card p-12 text-center">
-                                <Target size={48} className="mx-auto text-neutral-300 mb-4" />
-                                <h3 className="text-lg font-semibold text-neutral-800 mb-2">No Comparisons Available</h3>
-                                <p className="text-neutral-500">Add some pitches to compare against MLB averages.</p>
+                            <div className="glass-card p-8 lg:p-12 text-center">
+                                <Target size={40} className="mx-auto text-neutral-300 mb-4 lg:w-12 lg:h-12" />
+                                <h3 className="text-base lg:text-lg font-semibold text-neutral-800 mb-2">No Comparisons Available</h3>
+                                <p className="text-sm lg:text-base text-neutral-500">Add some pitches to compare against MLB averages.</p>
                             </div>
                         ) : (
                             <>
                                 {/* Double Bar Charts: User vs MLB */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                                     <ComparisonBarChart data={comparisonVeloData} metric="velocity" />
                                     <ComparisonBarChart data={comparisonVeloData} metric="spin" />
                                 </div>
 
                                 {/* Break Comparison Charts */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                                     <BreakComparisonChart data={breakComparisonData} breakType="horizontal" />
                                     <BreakComparisonChart data={breakComparisonData} breakType="vertical" />
                                 </div>
 
                                 {/* MLB Comparison Summary Table */}
-                                <div className="glass-card p-6">
-                                    <h2 className="text-lg font-semibold text-neutral-800 mb-4 flex items-center gap-2">
-                                        <Target size={20} className="text-amber-500" />
+                                <div className="glass-card p-4 lg:p-6">
+                                    <h2 className="text-base lg:text-lg font-semibold text-neutral-800 mb-4 flex items-center gap-2">
+                                        <Target size={18} className="text-amber-500 lg:w-5 lg:h-5" />
                                         MLB Comparison Summary
                                     </h2>
-                                    <div className="overflow-x-auto">
+
+                                    {/* Mobile Card View */}
+                                    <div className="lg:hidden space-y-4">
+                                        {comparisons.map((c, idx) => (
+                                            <div key={idx} className="glass-panel-sm p-4 space-y-3">
+                                                <div className="font-semibold text-neutral-800">{c.pitchType}</div>
+                                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                                    <div>
+                                                        <div className="text-neutral-500 text-xs">Your Velocity</div>
+                                                        <div className="font-medium">{c.userStats.avgVelo.toFixed(1)} mph</div>
+                                                        <div className="text-neutral-400 text-xs">MLB: {c.mlbStats.avgVelo.toFixed(1)}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-neutral-500 text-xs">Your Spin</div>
+                                                        <div className="font-medium">{Math.round(c.userStats.avgSpin).toLocaleString()} rpm</div>
+                                                        <div className="text-neutral-400 text-xs">MLB: {Math.round(c.mlbStats.avgSpin).toLocaleString()}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 pt-2">
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${c.percentiles.velocity >= 75 ? 'bg-green-100 text-green-700' :
+                                                        c.percentiles.velocity >= 50 ? 'bg-amber-100 text-amber-700' :
+                                                            'bg-red-100 text-red-700'
+                                                        }`}>
+                                                        Velo: {Math.round(c.percentiles.velocity)}%ile
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${c.percentiles.spinRate >= 75 ? 'bg-green-100 text-green-700' :
+                                                        c.percentiles.spinRate >= 50 ? 'bg-amber-100 text-amber-700' :
+                                                            'bg-red-100 text-red-700'
+                                                        }`}>
+                                                        Spin: {Math.round(c.percentiles.spinRate)}%ile
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Desktop Table View */}
+                                    <div className="hidden lg:block overflow-x-auto">
                                         <table className="data-table w-full">
                                             <thead>
                                                 <tr>

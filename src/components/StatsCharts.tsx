@@ -77,19 +77,19 @@ export function VelocityBarChart({ data, title = 'Velocity by Pitch Type' }: Vel
     if (data.length === 0) return null;
 
     return (
-        <div className={`glass-chart p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="flex items-center justify-between mb-6">
+        <div className={`glass-chart p-4 lg:p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 lg:mb-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-                    <p className="text-xs text-gray-500 mt-1">Average and max velocity comparison</p>
+                    <h3 className="text-base lg:text-lg font-semibold text-gray-800">{title}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 lg:mt-1">Average and max velocity comparison</p>
                 </div>
                 <div className="flex gap-2">
                     <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">Avg</span>
                     <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">Max</span>
                 </div>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={250} className="lg:!h-[300px]">
+                <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                     <defs>
                         <linearGradient id="avgVeloGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={COLORS.primaryLight} />
@@ -153,19 +153,19 @@ export function ComparisonBarChart({ data, metric, title }: ComparisonBarChartPr
     const unit = metric === 'velocity' ? 'mph' : 'rpm';
 
     return (
-        <div className={`glass-chart p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="flex items-center justify-between mb-6">
+        <div className={`glass-chart p-4 lg:p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 lg:mb-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{chartTitle}</h3>
-                    <p className="text-xs text-gray-500 mt-1">Your performance vs MLB averages</p>
+                    <h3 className="text-base lg:text-lg font-semibold text-gray-800">{chartTitle}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 lg:mt-1">Your performance vs MLB averages</p>
                 </div>
                 <div className="flex gap-2">
                     <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">You</span>
                     <span className="px-2 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">MLB</span>
                 </div>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={250} className="lg:!h-[300px]">
+                <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                     <defs>
                         <linearGradient id="userGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={COLORS.primaryLight} />
@@ -220,12 +220,12 @@ export function PitchDistributionPie({ data, title = 'Pitch Type Distribution' }
     const total = data.reduce((sum, d) => sum + d.value, 0);
 
     return (
-        <div className={`glass-chart p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-                <p className="text-xs text-gray-500 mt-1">Breakdown of your pitch arsenal</p>
+        <div className={`glass-chart p-4 lg:p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="mb-4 lg:mb-6">
+                <h3 className="text-base lg:text-lg font-semibold text-gray-800">{title}</h3>
+                <p className="text-xs text-gray-500 mt-0.5 lg:mt-1">Breakdown of your pitch arsenal</p>
             </div>
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={280} className="lg:!h-[320px]">
                 <PieChart>
                     <defs>
                         {PIE_COLORS.map((color, index) => (
@@ -240,16 +240,33 @@ export function PitchDistributionPie({ data, title = 'Pitch Type Distribution' }
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={(props) => {
-                            const name = props.name || '';
-                            const percent = props.percent ?? 0;
-                            return `${name} ${(percent * 100).toFixed(0)}%`;
+                        label={({ percent, cx, cy, midAngle, innerRadius, outerRadius }) => {
+                            // Only show label if percent > 5%
+                            if ((percent ?? 0) < 0.05) return null;
+                            const RADIAN = Math.PI / 180;
+                            const r = (innerRadius as number) + ((outerRadius as number) - (innerRadius as number)) * 0.5;
+                            const angle = midAngle ?? 0;
+                            const x = (cx as number) + r * Math.cos(-angle * RADIAN);
+                            const y = (cy as number) + r * Math.sin(-angle * RADIAN);
+                            return (
+                                <text
+                                    x={x}
+                                    y={y}
+                                    fill="white"
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                    className="text-[10px] lg:text-xs font-medium"
+                                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+                                >
+                                    {`${((percent ?? 0) * 100).toFixed(0)}%`}
+                                </text>
+                            );
                         }}
-                        outerRadius={110}
-                        innerRadius={50}
+                        outerRadius="80%"
+                        innerRadius="40%"
                         fill="#8884d8"
                         dataKey="value"
-                        paddingAngle={3}
+                        paddingAngle={2}
                         stroke="rgba(255,255,255,0.8)"
                         strokeWidth={2}
                     >
@@ -296,19 +313,19 @@ export function PercentileRadarChart({ data, title = 'MLB Percentile Overview' }
     const avgPercentile = Math.round(data.reduce((sum, d) => sum + d.percentile, 0) / data.length);
 
     return (
-        <div className={`glass-chart p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="flex items-center justify-between mb-6">
+        <div className={`glass-chart p-4 lg:p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 lg:mb-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-                    <p className="text-xs text-gray-500 mt-1">Your skills compared to MLB players</p>
+                    <h3 className="text-base lg:text-lg font-semibold text-gray-800">{title}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 lg:mt-1">Your skills compared to MLB players</p>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200/50">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200/50 self-start sm:self-auto">
                     <span className="text-xs text-gray-600">Avg:</span>
                     <span className="text-sm font-bold text-amber-600">{avgPercentile}th</span>
                 </div>
             </div>
-            <ResponsiveContainer width="100%" height={350}>
-                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
+            <ResponsiveContainer width="100%" height={280} className="lg:!h-[350px]">
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
                     <defs>
                         <linearGradient id="radarGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={COLORS.primary} stopOpacity={0.8} />
@@ -365,18 +382,18 @@ export function VelocityHistogram({ data, title = 'Velocity Distribution' }: Vel
     const totalPitches = data.reduce((sum, d) => sum + d.count, 0);
 
     return (
-        <div className={`glass-chart p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="flex items-center justify-between mb-6">
+        <div className={`glass-chart p-4 lg:p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 lg:mb-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-                    <p className="text-xs text-gray-500 mt-1">How your velocity is distributed</p>
+                    <h3 className="text-base lg:text-lg font-semibold text-gray-800">{title}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 lg:mt-1">How your velocity is distributed</p>
                 </div>
-                <span className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-100">
+                <span className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-100 self-start sm:self-auto">
                     {totalPitches} pitches
                 </span>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={250} className="lg:!h-[300px]">
+                <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                     <defs>
                         <linearGradient id="velocityHistGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={COLORS.secondaryLight} />
@@ -408,18 +425,18 @@ export function SpinHistogram({ data, title = 'Spin Rate Distribution' }: Veloci
     const totalPitches = data.reduce((sum, d) => sum + d.count, 0);
 
     return (
-        <div className={`glass-chart p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="flex items-center justify-between mb-6">
+        <div className={`glass-chart p-4 lg:p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 lg:mb-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-                    <p className="text-xs text-gray-500 mt-1">How your spin rate is distributed</p>
+                    <h3 className="text-base lg:text-lg font-semibold text-gray-800">{title}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 lg:mt-1">How your spin rate is distributed</p>
                 </div>
-                <span className="px-3 py-1.5 text-xs font-medium bg-purple-50 text-purple-700 rounded-full border border-purple-100">
+                <span className="px-3 py-1.5 text-xs font-medium bg-purple-50 text-purple-700 rounded-full border border-purple-100 self-start sm:self-auto">
                     {totalPitches} pitches
                 </span>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={250} className="lg:!h-[300px]">
+                <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                     <defs>
                         <linearGradient id="spinHistGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={COLORS.tertiaryLight} />
@@ -462,24 +479,24 @@ export function BreakComparisonChart({ data, breakType, title }: BreakComparison
     const isVisible = useChartAnimation();
     if (data.length === 0) return null;
 
-    const chartTitle = title || (breakType === 'horizontal' ? 'Horizontal Break: You vs MLB' : 'Vertical Break: You vs MLB');
+    const chartTitle = title || (breakType === 'horizontal' ? 'H. Break: You vs MLB' : 'V. Break: You vs MLB');
     const userKey = breakType === 'horizontal' ? 'userHBreak' : 'userVBreak';
     const mlbKey = breakType === 'horizontal' ? 'mlbHBreak' : 'mlbVBreak';
 
     return (
-        <div className={`glass-chart p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="flex items-center justify-between mb-6">
+        <div className={`glass-chart p-4 lg:p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 lg:mb-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{chartTitle}</h3>
-                    <p className="text-xs text-gray-500 mt-1">Movement comparison in inches</p>
+                    <h3 className="text-base lg:text-lg font-semibold text-gray-800">{chartTitle}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 lg:mt-1">Movement comparison in inches</p>
                 </div>
                 <div className="flex gap-2">
                     <span className="px-2 py-1 text-xs font-medium bg-violet-100 text-violet-700 rounded-full">You</span>
                     <span className="px-2 py-1 text-xs font-medium bg-cyan-100 text-cyan-700 rounded-full">MLB</span>
                 </div>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={250} className="lg:!h-[300px]">
+                <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                     <defs>
                         <linearGradient id="breakUserGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={COLORS.quaternaryLight} />

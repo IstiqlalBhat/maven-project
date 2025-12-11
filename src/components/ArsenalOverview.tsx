@@ -119,10 +119,98 @@ function PitchTypeRow({ stat, maxVelo, maxSpin }: { stat: PitchTypeStats; maxVel
         >
             {/* Main Row */}
             <div
-                className="p-4 cursor-pointer"
+                className="p-3 lg:p-4 cursor-pointer"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <div className="flex items-center gap-4">
+                {/* Mobile Layout */}
+                <div className="lg:hidden">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${style.color}`} />
+                            <span className={`font-semibold ${style.text}`}>{stat.type}</span>
+                        </div>
+                        <div className="px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600 font-medium">
+                            {stat.count}
+                        </div>
+                    </div>
+                    {/* 2x2 Grid on Mobile */}
+                    <div className="grid grid-cols-2 gap-3">
+                        {/* Velocity */}
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                    <Zap size={10} className="text-red-400" />
+                                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">Velo</span>
+                                </div>
+                                {stat.comparison && (
+                                    <PercentileDot percentile={stat.comparison.percentiles.velocity} />
+                                )}
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-sm font-bold text-gray-800">{stat.avgVelo.toFixed(1)}</span>
+                                <span className="text-[10px] text-gray-400">mph</span>
+                            </div>
+                            <MetricBar value={stat.avgVelo} maxValue={maxVelo} color="bg-gradient-to-r from-red-400 to-orange-400" />
+                        </div>
+
+                        {/* Spin */}
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                    <RotateCcw size={10} className="text-blue-400" />
+                                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">Spin</span>
+                                </div>
+                                {stat.comparison && (
+                                    <PercentileDot percentile={stat.comparison.percentiles.spinRate} />
+                                )}
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-sm font-bold text-gray-800">{Math.round(stat.avgSpin).toLocaleString()}</span>
+                                <span className="text-[10px] text-gray-400">rpm</span>
+                            </div>
+                            <MetricBar value={stat.avgSpin} maxValue={maxSpin} color="bg-gradient-to-r from-blue-400 to-indigo-400" />
+                        </div>
+
+                        {/* H-Break */}
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                    <ArrowRightLeft size={10} className="text-green-400" />
+                                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">H-Brk</span>
+                                </div>
+                                {stat.comparison && (
+                                    <PercentileDot percentile={stat.comparison.percentiles.horizontalBreak} />
+                                )}
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-sm font-bold text-gray-800">{(stat.avgHBreak ?? 0).toFixed(1)}</span>
+                                <span className="text-[10px] text-gray-400">&quot;</span>
+                            </div>
+                            <MetricBar value={Math.abs(stat.avgHBreak ?? 0)} maxValue={20} color="bg-gradient-to-r from-green-400 to-emerald-400" />
+                        </div>
+
+                        {/* V-Break */}
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                    <ArrowUpDown size={10} className="text-purple-400" />
+                                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">V-Brk</span>
+                                </div>
+                                {stat.comparison && (
+                                    <PercentileDot percentile={stat.comparison.percentiles.verticalBreak} />
+                                )}
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-sm font-bold text-gray-800">{(stat.avgVBreak ?? 0).toFixed(1)}</span>
+                                <span className="text-[10px] text-gray-400">&quot;</span>
+                            </div>
+                            <MetricBar value={Math.abs(stat.avgVBreak ?? 0)} maxValue={20} color="bg-gradient-to-r from-purple-400 to-violet-400" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Desktop Layout */}
+                <div className="hidden lg:flex items-center gap-4">
                     {/* Pitch Type Badge */}
                     <div className="flex items-center gap-2 min-w-[120px]">
                         <div className={`w-3 h-3 rounded-full ${style.color}`} />
@@ -213,8 +301,92 @@ function PitchTypeRow({ stat, maxVelo, maxSpin }: { stat: PitchTypeStats; maxVel
 
             {/* Expanded Details */}
             {isExpanded && stat.comparison && (
-                <div className={`px-4 pb-4 pt-2 border-t ${style.border} bg-gray-50/50`}>
-                    <div className="flex items-start gap-4">
+                <div className={`px-3 lg:px-4 pb-3 lg:pb-4 pt-2 border-t ${style.border} bg-gray-50/50`}>
+                    {/* Mobile Details - 2x2 Grid */}
+                    <div className="lg:hidden grid grid-cols-2 gap-3 text-xs">
+                        {/* Velocity Detail */}
+                        <div className="space-y-1.5 p-2 bg-white/50 rounded-lg">
+                            <div className="font-medium text-gray-700 flex items-center gap-1">
+                                <Zap size={10} className="text-red-400" />
+                                Velocity
+                            </div>
+                            <div className="flex items-center justify-between text-gray-500">
+                                <span>Max</span>
+                                <span className="font-medium text-gray-700">{stat.maxVelo.toFixed(1)} mph</span>
+                            </div>
+                            <div className="flex items-center justify-between text-gray-500">
+                                <span>MLB</span>
+                                <span className="font-medium text-gray-700">{stat.comparison.mlbStats.avgVelo.toFixed(1)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-gray-500">%ile</span>
+                                <span className={`font-bold ${stat.comparison.percentiles.velocity >= 60 ? 'text-emerald-600' : stat.comparison.percentiles.velocity >= 40 ? 'text-amber-600' : 'text-red-500'}`}>
+                                    {stat.comparison.percentiles.velocity}th
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Spin Detail */}
+                        <div className="space-y-1.5 p-2 bg-white/50 rounded-lg">
+                            <div className="font-medium text-gray-700 flex items-center gap-1">
+                                <RotateCcw size={10} className="text-blue-400" />
+                                Spin
+                            </div>
+                            <div className="flex items-center justify-between text-gray-500">
+                                <span>Max</span>
+                                <span className="font-medium text-gray-700">{Math.round(stat.maxSpin).toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-gray-500">
+                                <span>MLB</span>
+                                <span className="font-medium text-gray-700">{Math.round(stat.comparison.mlbStats.avgSpin).toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-gray-500">%ile</span>
+                                <span className={`font-bold ${stat.comparison.percentiles.spinRate >= 60 ? 'text-emerald-600' : stat.comparison.percentiles.spinRate >= 40 ? 'text-amber-600' : 'text-red-500'}`}>
+                                    {stat.comparison.percentiles.spinRate}th
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* H-Break Detail */}
+                        <div className="space-y-1.5 p-2 bg-white/50 rounded-lg">
+                            <div className="font-medium text-gray-700 flex items-center gap-1">
+                                <ArrowRightLeft size={10} className="text-green-400" />
+                                H-Break
+                            </div>
+                            <div className="flex items-center justify-between text-gray-500">
+                                <span>MLB</span>
+                                <span className="font-medium text-gray-700">{stat.comparison.mlbStats.avgHBreak.toFixed(1)}&quot;</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-gray-500">%ile</span>
+                                <span className={`font-bold ${stat.comparison.percentiles.horizontalBreak >= 60 ? 'text-emerald-600' : stat.comparison.percentiles.horizontalBreak >= 40 ? 'text-amber-600' : 'text-red-500'}`}>
+                                    {stat.comparison.percentiles.horizontalBreak}th
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* V-Break Detail */}
+                        <div className="space-y-1.5 p-2 bg-white/50 rounded-lg">
+                            <div className="font-medium text-gray-700 flex items-center gap-1">
+                                <ArrowUpDown size={10} className="text-purple-400" />
+                                V-Break
+                            </div>
+                            <div className="flex items-center justify-between text-gray-500">
+                                <span>MLB</span>
+                                <span className="font-medium text-gray-700">{stat.comparison.mlbStats.avgVBreak.toFixed(1)}&quot;</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-gray-500">%ile</span>
+                                <span className={`font-bold ${stat.comparison.percentiles.verticalBreak >= 60 ? 'text-emerald-600' : stat.comparison.percentiles.verticalBreak >= 40 ? 'text-amber-600' : 'text-red-500'}`}>
+                                    {stat.comparison.percentiles.verticalBreak}th
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Desktop Details */}
+                    <div className="hidden lg:flex items-start gap-4">
                         {/* Spacer to align with metrics grid above */}
                         <div className="min-w-[120px]" />
                         <div className="px-2 py-0.5 invisible text-xs">00</div>
@@ -307,19 +479,19 @@ function PitchTypeRow({ stat, maxVelo, maxSpin }: { stat: PitchTypeStats; maxVel
 // Legend component
 function Legend() {
     return (
-        <div className="flex items-center gap-4 text-xs text-gray-500">
-            <span className="font-medium text-gray-700">Percentile:</span>
+        <div className="flex flex-wrap items-center gap-2 lg:gap-4 text-xs text-gray-500">
+            <span className="font-medium text-gray-700 hidden sm:inline">Percentile:</span>
             <div className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-violet-500" />
                 <span>80+</span>
             </div>
             <div className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span>60-79</span>
+                <span>60+</span>
             </div>
             <div className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-amber-500" />
-                <span>40-59</span>
+                <span>40+</span>
             </div>
             <div className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-red-400" />
@@ -336,25 +508,25 @@ export default function ArsenalOverview({ pitchTypes, totalPitches }: ArsenalOve
 
     if (pitchTypes.length === 0) {
         return (
-            <div className="glass-card p-8 text-center">
+            <div className="glass-card p-6 lg:p-8 text-center">
                 <p className="text-gray-500">No pitches recorded yet.</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3 lg:space-y-4">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                    <h2 className="text-lg font-semibold text-gray-800">Arsenal Overview</h2>
-                    <p className="text-xs text-gray-500">{totalPitches} total pitches across {pitchTypes.length} pitch types</p>
+                    <h2 className="text-base lg:text-lg font-semibold text-gray-800">Arsenal Overview</h2>
+                    <p className="text-xs text-gray-500">{totalPitches} pitches, {pitchTypes.length} types</p>
                 </div>
                 <Legend />
             </div>
 
             {/* Pitch Type Rows */}
-            <div className="space-y-3">
+            <div className="space-y-2 lg:space-y-3">
                 {pitchTypes.map((stat) => (
                     <PitchTypeRow
                         key={`arsenal-${stat.type}`}
@@ -366,7 +538,7 @@ export default function ArsenalOverview({ pitchTypes, totalPitches }: ArsenalOve
             </div>
 
             {/* Tip */}
-            <p className="text-xs text-gray-400 text-center">Click on a pitch type to see detailed comparison</p>
+            <p className="text-xs text-gray-400 text-center">Tap a pitch type for details</p>
         </div>
     );
 }

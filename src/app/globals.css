@@ -816,6 +816,16 @@ body {
 
 /* Mobile-first responsive utilities */
 
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Mobile header spacing for pages with sidebar */
 .mobile-header-spacing {
   padding-top: 4rem; /* 64px for mobile header */
@@ -832,6 +842,22 @@ body {
   margin-left: 0;
   padding: 1rem;
   padding-top: 5rem; /* Account for mobile header */
+  min-height: 100vh;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .main-content {
+    padding: 1.25rem;
+    padding-top: 5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .main-content {
+    padding: 1.5rem;
+    padding-top: 5rem;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -839,18 +865,11 @@ body {
     margin-left: 16rem; /* 256px = w-64 */
     padding: 2rem;
     padding-top: 2rem;
+    width: auto;
   }
 
   .main-content.sidebar-collapsed {
     margin-left: 5rem; /* 80px = w-20 */
-  }
-}
-
-/* Tablet breakpoint */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .main-content {
-    padding: 1.5rem;
-    padding-top: 5rem;
   }
 }
 
