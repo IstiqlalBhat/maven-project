@@ -64,7 +64,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         // Group user pitches by type
         const userPitchByType: Record<string, typeof userPitches> = {};
         for (const pitch of userPitches) {
-            const type = pitch.pitch_type;
+            const type = pitch.pitch_type as string;
             if (!userPitchByType[type]) {
                 userPitchByType[type] = [];
             }
