@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { query, getClient } from '@/lib/postgres';
-import { apiRateLimiter } from '@/lib/rate-limiter';
+import { aiRateLimiter } from '@/lib/rate-limiter';
 import { sanitizePromptInput } from '@/lib/validation';
 
 // Initialize with explicit API key from environment
@@ -80,8 +80,8 @@ const PITCH_TYPE_MAP: Record<string, string> = {
 };
 
 export async function POST(request: NextRequest) {
-    // Rate limiting
-    const rateLimitResponse = apiRateLimiter(request);
+    // Rate limiting - stricter for AI to prevent abuse (10/min)
+    const rateLimitResponse = aiRateLimiter(request);
     if (rateLimitResponse) {
         return rateLimitResponse;
     }

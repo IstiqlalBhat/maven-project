@@ -93,6 +93,12 @@ export const RATE_LIMITS = {
         maxRequests: 3,
         keyPrefix: 'heavy'
     },
+    /** AI/Chat endpoints - 10 requests per minute (protects Gemini API) */
+    AI: {
+        windowMs: 60 * 1000,
+        maxRequests: 10,
+        keyPrefix: 'ai'
+    },
     /** Default rate limit - 60 requests per minute */
     DEFAULT: {
         windowMs: 60 * 1000,

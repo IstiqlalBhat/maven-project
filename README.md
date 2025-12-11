@@ -313,6 +313,7 @@ See [AIfeatures.md](markdown/AIfeatures.md) for full documentation.
 |---------------|-------|
 | Auth | 5 req/min |
 | API | 100 req/min |
+| AI Chat | 10 req/min |
 | Batch | 50 req/min |
 | Heavy (seed) | 3 req/5min |
 

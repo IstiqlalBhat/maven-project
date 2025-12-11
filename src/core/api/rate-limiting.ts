@@ -116,3 +116,6 @@ export const batchOperationRateLimiter = createRateLimiter(RATE_LIMITS.BATCH);
 
 // Heavy stuff like DB seeding (3 per 5 min)
 export const heavyOperationRateLimiter = createRateLimiter(RATE_LIMITS.HEAVY);
+
+// AI chat - stricter to protect Gemini API (10/min)
+export const aiRateLimiter = createRateLimiter(RATE_LIMITS.AI);
