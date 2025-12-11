@@ -269,7 +269,7 @@ Try asking Maven AI:
 ### Rate Limiting
 | Endpoint | Limit |
 |----------|-------|
-| Chat API | 100 requests/min |
+| Chat API | 10 requests/min |
 
 ---
 
