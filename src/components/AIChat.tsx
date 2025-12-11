@@ -77,17 +77,20 @@ export default function AIChat({ pitcher }: AIChatProps) {
         }
     }, [messages, storageKey]);
 
-    // Auto-scroll to bottom on new messages
+    // Auto-scroll within CHAT CONTAINER only - doesn't affect dashboard scroll
     const scrollToBottom = useCallback(() => {
         if (!autoScrollEnabled) return;
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        const container = messagesContainerRef.current;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
     }, [autoScrollEnabled]);
 
     useEffect(() => {
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    // Keep view pinned when a new AI response begins (but allow manual scrolling)
+    // Keep chat pinned during AI response animation (contained to chat only)
     useEffect(() => {
         if (!activeAiMessageId || !autoScrollEnabled) return;
         scrollToBottom();
@@ -246,7 +249,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
                             }`}
                     >
                         <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                        {isLoading ? 'Rendering' : 'Live'}
+                        {isLoading ? 'Thinking' : 'Online'}
                     </div>
                     {messages.length > 0 && (
                         <button
@@ -309,12 +312,6 @@ export default function AIChat({ pitcher }: AIChatProps) {
                                     <p className={`text-sm whitespace-pre-wrap leading-relaxed ${isActiveAi ? 'streaming-text' : ''}`}>
                                         {textToRender}
                                     </p>
-                                    {message.role === 'model' && !isActiveAi && (
-                                        <span className="mt-2 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-amber-600 font-semibold">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                                            Rendered
-                                        </span>
-                                    )}
                                 </div>
                             </div>
                         );
@@ -334,7 +331,6 @@ export default function AIChat({ pitcher }: AIChatProps) {
                                 <div className="ai-loader-line" />
                                 <div className="ai-loader-line sm" />
                                 <div className="ai-loader-line xs" />
-                                <p className="text-[11px] text-gray-500 font-semibold uppercase tracking-[0.08em] mt-1">rendering text</p>
                             </div>
                         </div>
                     </div>
