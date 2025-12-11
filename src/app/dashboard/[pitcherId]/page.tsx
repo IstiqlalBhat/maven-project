@@ -120,27 +120,28 @@ export default function DashboardPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showNotifications, setShowNotifications] = useState(false);
 
-    // Redirect to login if not authenticated
+    // Fetch pitcher info (user guard prevents race condition)
     useEffect(() => {
-        if (!authLoading && !user) {
-            router.push('/login');
-        }
-    }, [user, authLoading, router]);
-
-    // Fetch pitcher info
-    useEffect(() => {
+        if (!user) return;
         authGet(`/api/pitchers/${pitcherId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    router.push('/');
-                    return;
+            .then(res => {
+                if (!res.ok) {
+                    // Only redirect on 404 (not found) or 403 (forbidden)
+                    if (res.status === 404 || res.status === 403) {
+                        router.push('/');
+                    }
+                    return null;
                 }
-                setPitcher(data);
+                return res.json();
+            })
+            .then(data => {
+                if (data) {
+                    setPitcher(data);
+                }
                 setIsLoadingPitcher(false);
             })
-            .catch(() => router.push('/'));
-    }, [pitcherId, router]);
+            .catch(() => setIsLoadingPitcher(false));
+    }, [pitcherId, router, user]);
 
     // Fetch pitches
     const fetchPitches = useCallback(() => {
@@ -156,6 +157,13 @@ export default function DashboardPage() {
 
     useEffect(() => {
         fetchPitches();
+    }, [fetchPitches]);
+
+    // Listen for batch upload completion to refresh pitches
+    useEffect(() => {
+        const handlePitchesUpdated = () => fetchPitches();
+        window.addEventListener('pitches-updated', handlePitchesUpdated);
+        return () => window.removeEventListener('pitches-updated', handlePitchesUpdated);
     }, [fetchPitches]);
 
     // Fetch comparisons when pitches change
@@ -204,6 +212,22 @@ export default function DashboardPage() {
             }
         } catch (error) {
             console.error('Error deleting pitch:', error);
+        }
+    };
+
+    // Handle batch delete
+    const handleBatchDelete = async (ids: number[]) => {
+        try {
+            const res = await authPost('/api/pitches/batch-delete', { pitch_ids: ids });
+            if (res.ok) {
+                fetchPitches();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to delete pitches');
+            }
+        } catch (error) {
+            console.error('Error batch deleting pitches:', error);
+            alert('Failed to delete pitches');
         }
     };
 
@@ -259,29 +283,29 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen flex">
+        <div className="min-h-screen flex flex-col lg:flex-row">
             {/* Sidebar */}
             <Sidebar pitcherId={pitcherId} />
 
             {/* Main Content */}
-            <main className="flex-1 ml-64 p-8">
+            <main className="flex-1 main-content">
                 {/* Header */}
-                <header className="flex justify-between items-center mb-8">
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 lg:mb-8">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-                        <p className="text-gray-500">Welcome back, {pitcher?.name}</p>
+                        <h1 className="text-xl lg:text-2xl font-bold text-gray-800">Dashboard</h1>
+                        <p className="text-sm lg:text-base text-gray-500">Welcome back, {pitcher?.name}</p>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                         {/* Search */}
-                        <div className="relative">
+                        <div className="relative flex-1 sm:flex-none">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                             <input
                                 type="text"
                                 placeholder="Search..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm w-52 transition-all duration-200 shadow-sm hover:border-amber-200 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-300 focus:bg-white"
+                                className="pl-10 pr-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm w-full sm:w-52 transition-all duration-200 shadow-sm hover:border-amber-200 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-300 focus:bg-white"
                             />
                             {searchTerm && (
                                 <div className="absolute mt-2 w-full bg-white border border-amber-100 rounded-xl shadow-lg z-20 overflow-hidden">
@@ -328,14 +352,14 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Profile */}
-                        <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-white font-bold">
+                        <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0">
                             {pitcher?.name.charAt(0)}
                         </div>
                     </div>
                 </header>
 
                 {/* Tabs */}
-                <div className="flex gap-2 mb-6">
+                <div className="flex gap-2 mb-4 lg:mb-6 overflow-x-auto pb-2">
                     <button
                         onClick={() => setActiveTab('dashboard')}
                         className={`px-4 py-2 rounded-xl font-medium transition-all ${activeTab === 'dashboard'
@@ -357,11 +381,11 @@ export default function DashboardPage() {
                 </div>
 
                 {activeTab === 'dashboard' ? (
-                    <div className="grid grid-cols-12 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
                         {/* Left Column */}
-                        <div className="col-span-12 lg:col-span-8 space-y-6">
+                        <div className="lg:col-span-8 space-y-4 lg:space-y-6 order-2 lg:order-1">
                             {/* Stats Row */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:gap-4">
                                 <StatsCard
                                     title="Avg. Velocity"
                                     value={avgVelocity ? avgVelocity.toFixed(1) : '-'}
@@ -474,21 +498,23 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Right Column */}
-                        <div className="col-span-12 lg:col-span-4 space-y-6">
+                        <div className="lg:col-span-4 space-y-4 lg:space-y-6 order-1 lg:order-2">
                             {/* Add Pitch Button */}
                             <button
                                 onClick={() => {
                                     setEditingPitch(null);
                                     setShowPitchForm(true);
                                 }}
-                                className="btn-primary w-full flex items-center justify-center gap-2 text-base py-4 shadow-lg shadow-amber-400/30 hover:shadow-amber-400/40 transition-all duration-200"
+                                className="btn-primary w-full flex items-center justify-center gap-2 text-base py-3 lg:py-4 shadow-lg shadow-amber-400/30 hover:shadow-amber-400/40 transition-all duration-200"
                             >
                                 <Plus size={20} />
                                 Add New Pitch
                             </button>
 
-                            {/* Recent Pitches */}
-                            <RecentPitches pitches={pitches} isLoading={isLoadingPitches} />
+                            {/* Recent Pitches - Hidden on mobile for less clutter, shown in sidebar area */}
+                            <div className="hidden sm:block">
+                                <RecentPitches pitches={pitches} isLoading={isLoadingPitches} />
+                            </div>
 
                             {/* Similar Pros */}
                             <SimilarPros pitchers={similarPitchers} isLoading={isLoadingComparisons} />
@@ -505,15 +531,15 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     /* Arsenal Tab */
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-gray-800">My Arsenal</h2>
+                    <div className="space-y-4 lg:space-y-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <h2 className="text-lg lg:text-xl font-bold text-gray-800">My Arsenal</h2>
                             <button
                                 onClick={() => {
                                     setEditingPitch(null);
                                     setShowPitchForm(true);
                                 }}
-                                className="btn-primary flex items-center gap-2"
+                                className="btn-primary flex items-center gap-2 w-full sm:w-auto justify-center"
                             >
                                 <Plus size={18} />
                                 Add Pitch
@@ -537,12 +563,13 @@ export default function DashboardPage() {
                                 setShowPitchForm(true);
                             }}
                             onDelete={handleDeletePitch}
+                            onBatchDelete={handleBatchDelete}
                             isLoading={isLoadingPitches}
                         />
 
                         {/* Quick Stats */}
                         {pitches.length > 0 && (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:gap-4">
                                 <StatsCard
                                     title="Avg. Velocity"
                                     value={avgVelocity ? avgVelocity.toFixed(1) : '-'}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { query } from '@/lib/postgres';
+import { query, getClient } from '@/lib/postgres';
 import { apiRateLimiter } from '@/lib/rate-limiter';
 import { sanitizePromptInput } from '@/lib/validation';
 
@@ -150,203 +150,236 @@ Please respond to the user's latest message.`;
 
 /**
  * Build comprehensive pitcher context from database with advanced analytics
+ * Uses specialized PostgreSQL RPC functions for efficient server-side aggregation
  */
 async function buildPitcherContext(pitcherId: number): Promise<string> {
     try {
-        // 1. Get pitcher profile
-        const pitcherResult = await query(
-            'SELECT * FROM user_pitchers WHERE id = $1',
-            [pitcherId]
-        );
+        const client = await getClient();
 
-        if (pitcherResult.rows.length === 0) {
+        // 1. Get pitcher profile
+        const { data: pitcherData, error: pitcherError } = await client
+            .from('user_pitchers')
+            .select('*')
+            .eq('id', pitcherId)
+            .single();
+
+        if (pitcherError || !pitcherData) {
+            console.error('Error fetching pitcher:', pitcherError);
             return '';
         }
 
-        const pitcher = pitcherResult.rows[0];
+        const pitcher = pitcherData;
 
-        // 2. Get per-pitch-type breakdown with advanced stats
-        const arsenalResult = await query(`
-            SELECT 
-                pitch_type,
-                COUNT(*) as pitch_count,
-                ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 1) as usage_pct,
-                ROUND(AVG(velocity_mph)::numeric, 1) as avg_velo,
-                ROUND(MAX(velocity_mph)::numeric, 1) as max_velo,
-                ROUND(MIN(velocity_mph)::numeric, 1) as min_velo,
-                ROUND(COALESCE(STDDEV(velocity_mph), 0)::numeric, 2) as velo_stddev,
-                ROUND(AVG(spin_rate)::numeric, 0) as avg_spin,
-                ROUND(MAX(spin_rate)::numeric, 0) as max_spin,
-                ROUND(COALESCE(STDDEV(spin_rate), 0)::numeric, 0) as spin_stddev,
-                ROUND(AVG(ABS(horizontal_break))::numeric, 1) as avg_h_break,
-                ROUND(AVG(vertical_break)::numeric, 1) as avg_v_break,
-                MIN(date) as first_date,
-                MAX(date) as last_date
-            FROM user_pitches
-            WHERE pitcher_id = $1
-            GROUP BY pitch_type
-            ORDER BY pitch_count DESC
-        `, [pitcherId]);
+        // 2. Get arsenal stats via RPC (all aggregation done in PostgreSQL)
+        const { data: arsenalData, error: arsenalError } = await client
+            .rpc('get_pitcher_arsenal_stats', { p_pitcher_id: pitcherId });
 
-        const arsenal = arsenalResult.rows;
+        if (arsenalError) {
+            console.error('Error fetching arsenal stats:', arsenalError);
+            // Fallback: return basic pitcher info
+            return `
+\`\`\`typescript
+// PITCHER DATA FOR: ${pitcher.name}
+// =====================================
+const pitcherProfile = {
+  name: "${pitcher.name}",
+  age: ${pitcher.age || 'null'},
+  throws: "${pitcher.throws === 'R' ? 'Right' : pitcher.throws === 'L' ? 'Left' : 'Unknown'}",
+  level: "${pitcher.level || 'Not specified'}",
+  status: "Error loading pitch data. Please try again."
+};
+\`\`\``;
+        }
+
+        const arsenal = arsenalData || [];
 
         if (arsenal.length === 0) {
             return `
-
-PITCHER DATA FOR: ${pitcher.name}
-=====================================
-Profile: ${pitcher.age || 'Unknown'} years old | ${pitcher.throws === 'R' ? 'Right-handed' : pitcher.throws === 'L' ? 'Left-handed' : 'Unknown handedness'} | ${pitcher.level || 'Level not specified'}
-Data: No pitches logged yet. Ask the user to add some pitches to get personalized coaching.`;
+\`\`\`typescript
+// PITCHER DATA FOR: ${pitcher.name}
+// =====================================
+const pitcherProfile = {
+  name: "${pitcher.name}",
+  age: ${pitcher.age || 'null'},
+  throws: "${pitcher.throws === 'R' ? 'Right' : pitcher.throws === 'L' ? 'Left' : 'Unknown'}",
+  level: "${pitcher.level || 'Not specified'}",
+  pitchesLogged: 0,
+  status: "No pitches logged yet. Ask the user to add some pitches to get personalized coaching."
+};
+\`\`\``;
         }
 
-        // 3. Calculate velocity differentials from primary fastball
-        const primaryFB = arsenal.find(p =>
+        // 3. Find primary fastball for velocity separation
+        const primaryFB = arsenal.find((p: { pitch_type: string }) =>
             ['Fastball', '4-Seam Fastball', 'Four-Seam', 'Sinker', '2-Seam Fastball'].includes(p.pitch_type)
         );
         const primaryVelo = primaryFB ? parseFloat(primaryFB.avg_velo) : 0;
 
-        // 4. Get MLB percentiles for each pitch type
+        // 4. Get MLB percentiles via RPC (single call for all pitch types)
+        const mlbCodes = arsenal.map((p: { pitch_type: string }) =>
+            PITCH_TYPE_MAP[p.pitch_type] || 'FF'
+        );
+        const uniqueMlbCodes = [...new Set(mlbCodes)];
+
+        const { data: mlbData } = await client
+            .rpc('get_mlb_pitch_percentiles', { p_pitch_types: uniqueMlbCodes });
+
+        // Build percentile lookup
         const percentiles: Record<string, { velo: number; spin: number }> = {};
-        for (const pitch of arsenal) {
-            const mlbCode = PITCH_TYPE_MAP[pitch.pitch_type] || 'FF';
-            const mlbStats = await query(`
-                SELECT 
-                    AVG(release_speed) as mlb_avg_velo,
-                    STDDEV(release_speed) as mlb_stddev_velo,
-                    AVG(release_spin_rate) as mlb_avg_spin,
-                    STDDEV(release_spin_rate) as mlb_stddev_spin
-                FROM mlb_pitches
-                WHERE pitch_type = $1 AND release_speed IS NOT NULL
-            `, [mlbCode]);
-
-            const stats = mlbStats.rows[0];
-            if (stats && stats.mlb_avg_velo) {
-                const veloZ = (parseFloat(pitch.avg_velo) - parseFloat(stats.mlb_avg_velo)) / (parseFloat(stats.mlb_stddev_velo) || 3);
-                const spinZ = (parseFloat(pitch.avg_spin) - parseFloat(stats.mlb_avg_spin)) / (parseFloat(stats.mlb_stddev_spin) || 200);
-                percentiles[pitch.pitch_type] = {
-                    velo: Math.min(99, Math.max(1, Math.round(50 + veloZ * 15))),
-                    spin: Math.min(99, Math.max(1, Math.round(50 + spinZ * 15)))
-                };
-            }
-        }
-
-        // 5. Get similar MLB pitchers
-        const overallVelo = arsenal.reduce((sum, p) => sum + parseFloat(p.avg_velo || 0) * parseInt(p.pitch_count), 0) /
-            arsenal.reduce((sum, p) => sum + parseInt(p.pitch_count), 0);
-        const overallSpin = arsenal.reduce((sum, p) => sum + parseFloat(p.avg_spin || 0) * parseInt(p.pitch_count), 0) /
-            arsenal.reduce((sum, p) => sum + parseInt(p.pitch_count), 0);
-
-        const similarResult = await query(`
-            SELECT 
-                pitcher_name,
-                ROUND(avg_velo::numeric, 1) as avg_velo,
-                ROUND(avg_spin::numeric, 0) as avg_spin,
-                ROUND((100 - SQRT(POWER((avg_velo - $1)/10, 2) + POWER((avg_spin - $2)/500, 2)) * 20)::numeric, 0) as similarity_pct
-            FROM mv_pitcher_stats
-            ORDER BY similarity_pct DESC
-            LIMIT 3
-        `, [overallVelo || 90, overallSpin || 2200]);
-
-        const similarPitchers = similarResult.rows;
-
-        // 6. Get recent trend (last 10 vs overall)
-        const trendResult = await query(`
-            WITH recent AS (
-                SELECT pitch_type, AVG(velocity_mph) as recent_velo
-                FROM (
-                    SELECT * FROM user_pitches 
-                    WHERE pitcher_id = $1 
-                    ORDER BY date DESC NULLS LAST, id DESC 
-                    LIMIT 10
-                ) r
-                GROUP BY pitch_type
-            ),
-            overall AS (
-                SELECT pitch_type, AVG(velocity_mph) as overall_velo
-                FROM user_pitches WHERE pitcher_id = $1
-                GROUP BY pitch_type
-            )
-            SELECT 
-                o.pitch_type,
-                ROUND((COALESCE(r.recent_velo, o.overall_velo) - o.overall_velo)::numeric, 1) as velo_trend
-            FROM overall o
-            LEFT JOIN recent r ON o.pitch_type = r.pitch_type
-        `, [pitcherId]);
-
-        const trends: Record<string, number> = {};
-        trendResult.rows.forEach(r => {
-            trends[r.pitch_type] = parseFloat(r.velo_trend) || 0;
-        });
-
-        // 7. Build the structured context
-        const totalPitches = arsenal.reduce((sum, p) => sum + parseInt(p.pitch_count), 0);
-        const dateRange = arsenal[0]?.first_date && arsenal[0]?.last_date
-            ? `${new Date(arsenal[0].first_date).toLocaleDateString()} to ${new Date(arsenal[0].last_date).toLocaleDateString()}`
-            : 'Unknown';
-
-        let context = `
-
-PITCHER DATA FOR: ${pitcher.name}
-=====================================
-Profile: ${pitcher.age || 'Unknown'} years old | ${pitcher.throws === 'R' ? 'Right-handed' : pitcher.throws === 'L' ? 'Left-handed' : 'Unknown'} | ${pitcher.level || 'Not specified'}
-Data: ${totalPitches} pitches logged (${dateRange})
-
-ARSENAL BREAKDOWN:`;
-
-        for (const pitch of arsenal) {
-            const veloDiff = primaryVelo ? (primaryVelo - parseFloat(pitch.avg_velo)).toFixed(1) : 'N/A';
-            const pct = percentiles[pitch.pitch_type];
-            const trend = trends[pitch.pitch_type] || 0;
-            const trendIcon = trend > 0.5 ? '📈' : trend < -0.5 ? '📉' : '➡️';
-            const consistencyGrade = parseFloat(pitch.velo_stddev) < 1.0 ? 'Elite' :
-                parseFloat(pitch.velo_stddev) < 1.5 ? 'Good' :
-                    parseFloat(pitch.velo_stddev) < 2.0 ? 'Average' : 'Needs work';
-
-            context += `
-• ${pitch.pitch_type} (${pitch.usage_pct}% usage, ${pitch.pitch_count} pitches):
-  - Velocity: ${pitch.avg_velo} mph avg | ${pitch.max_velo} mph max | ±${pitch.velo_stddev} stddev (${consistencyGrade})
-  - Spin: ${pitch.avg_spin} rpm avg | ${pitch.max_spin} max
-  - Movement: ${pitch.avg_h_break || 0}" horizontal | ${pitch.avg_v_break || 0}" vertical
-  - MLB Percentiles: Velo ${pct?.velo || 'N/A'}th | Spin ${pct?.spin || 'N/A'}th
-  - Separation from FB: ${veloDiff !== 'N/A' && veloDiff !== '0.0' ? veloDiff + ' mph' : 'Primary pitch'}
-  - Recent trend: ${trendIcon} ${trend >= 0 ? '+' : ''}${trend} mph vs overall`;
-        }
-
-        // Add velocity separation analysis
-        if (primaryVelo && arsenal.length > 1) {
-            context += `
-
-VELOCITY SEPARATION ANALYSIS (from ${primaryFB.pitch_type} @ ${primaryVelo} mph):`;
+        if (mlbData && Array.isArray(mlbData)) {
             for (const pitch of arsenal) {
-                if (pitch.pitch_type !== primaryFB.pitch_type) {
-                    const diff = primaryVelo - parseFloat(pitch.avg_velo);
-                    const quality = diff >= 8 ? '✓ Good separation' :
-                        diff >= 5 ? '⚠ Moderate separation' : '❌ Needs more separation';
-                    context += `
-• ${pitch.pitch_type}: -${diff.toFixed(1)} mph ${quality}`;
+                const mlbCode = PITCH_TYPE_MAP[pitch.pitch_type] || 'FF';
+                const mlbStats = mlbData.find((m: { pitch_type: string }) => m.pitch_type === mlbCode);
+
+                if (mlbStats) {
+                    const veloZ = (parseFloat(pitch.avg_velo) - mlbStats.avg_velo) / (mlbStats.stddev_velo || 3);
+                    const spinZ = (parseFloat(pitch.avg_spin) - mlbStats.avg_spin) / (mlbStats.stddev_spin || 200);
+
+                    percentiles[pitch.pitch_type] = {
+                        velo: Math.min(99, Math.max(1, Math.round(50 + veloZ * 15))),
+                        spin: Math.min(99, Math.max(1, Math.round(50 + spinZ * 15)))
+                    };
                 }
             }
         }
+
+        // 5. Calculate overall stats for similar pitcher matching
+        const totalPitches = arsenal.reduce((sum: number, p: { pitch_count: number }) => sum + p.pitch_count, 0);
+        const overallVelo = arsenal.reduce((sum: number, p: { avg_velo: string; pitch_count: number }) =>
+            sum + parseFloat(p.avg_velo) * p.pitch_count, 0) / totalPitches;
+        const overallSpin = arsenal.reduce((sum: number, p: { avg_spin: number; pitch_count: number }) =>
+            sum + p.avg_spin * p.pitch_count, 0) / totalPitches;
+
+        // 6. Get similar MLB pitchers via RPC
+        let similarPitchers: { pitcher_name: string; avg_velo: number; avg_spin: number; similarity_pct: number }[] = [];
+        try {
+            const { data: similarData } = await client
+                .rpc('get_similar_mlb_pitchers', {
+                    p_avg_velo: overallVelo,
+                    p_avg_spin: overallSpin,
+                    p_limit: 3
+                });
+            similarPitchers = similarData || [];
+        } catch (e) {
+            console.warn('Could not fetch similar pitchers:', e);
+        }
+
+        // 7. Get velocity trends via RPC
+        const trends: Record<string, number> = {};
+        try {
+            const { data: trendData } = await client
+                .rpc('get_pitcher_velocity_trend', { p_pitcher_id: pitcherId });
+
+            if (trendData && Array.isArray(trendData)) {
+                for (const t of trendData) {
+                    trends[t.pitch_type] = t.velo_trend || 0;
+                }
+            }
+        } catch (e) {
+            console.warn('Could not fetch velocity trends:', e);
+        }
+
+        // 8. Build the TypeScript-formatted context
+        const dateRange = arsenal[0]?.first_date && arsenal[0]?.last_date
+            ? `${arsenal[0].first_date} to ${arsenal[0].last_date}`
+            : 'Unknown';
+
+        let context = `
+\`\`\`typescript
+// PITCHER DATA FOR: ${pitcher.name}
+// =====================================
+
+interface PitcherProfile {
+  name: string;
+  age: number | null;
+  throws: "Right" | "Left" | "Unknown";
+  level: string;
+  totalPitches: number;
+  dateRange: string;
+}
+
+const pitcher: PitcherProfile = {
+  name: "${pitcher.name}",
+  age: ${pitcher.age || 'null'},
+  throws: "${pitcher.throws === 'R' ? 'Right' : pitcher.throws === 'L' ? 'Left' : 'Unknown'}",
+  level: "${pitcher.level || 'Not specified'}",
+  totalPitches: ${totalPitches},
+  dateRange: "${dateRange}"
+};
+
+interface PitchStats {
+  pitchType: string;
+  usage: string;
+  count: number;
+  velocity: { avg: number; max: number; stddev: number; mlbPercentile: number | null };
+  spin: { avg: number; max: number; mlbPercentile: number | null };
+  movement: { horizontal: number; vertical: number };
+  separation: string;
+  trend: string;
+  consistency: "Elite" | "Good" | "Average" | "Needs work";
+}
+
+const arsenal: PitchStats[] = [`;
+
+        for (const pitch of arsenal) {
+            const pct = percentiles[pitch.pitch_type];
+            const trend = trends[pitch.pitch_type] || 0;
+            const trendStr = trend > 0.5 ? `+${trend} mph (improving)` : trend < -0.5 ? `${trend} mph (declining)` : 'stable';
+            const consistencyGrade = parseFloat(pitch.velo_stddev) < 1.0 ? 'Elite' :
+                parseFloat(pitch.velo_stddev) < 1.5 ? 'Good' :
+                    parseFloat(pitch.velo_stddev) < 2.0 ? 'Average' : 'Needs work';
+            const veloDiff = primaryVelo && pitch.pitch_type !== primaryFB?.pitch_type
+                ? `-${(primaryVelo - parseFloat(pitch.avg_velo)).toFixed(1)} mph from FB`
+                : 'Primary pitch';
+
+            context += `
+  {
+    pitchType: "${pitch.pitch_type}",
+    usage: "${pitch.usage_pct}%",
+    count: ${pitch.pitch_count},
+    velocity: { avg: ${pitch.avg_velo}, max: ${pitch.max_velo}, stddev: ${pitch.velo_stddev}, mlbPercentile: ${pct?.velo || 'null'} },
+    spin: { avg: ${pitch.avg_spin}, max: ${pitch.max_spin}, mlbPercentile: ${pct?.spin || 'null'} },
+    movement: { horizontal: ${pitch.avg_h_break || 0}, vertical: ${pitch.avg_v_break || 0} },
+    separation: "${veloDiff}",
+    trend: "${trendStr}",
+    consistency: "${consistencyGrade}"
+  },`;
+        }
+
+        context += `
+];`;
 
         // Add similar pitchers
         if (similarPitchers.length > 0) {
             context += `
 
-SIMILAR MLB PITCHERS (for reference/development):`;
-            similarPitchers.forEach((p, i) => {
+interface SimilarPitcher {
+  name: string;
+  similarity: number;
+  avgVelo: number;
+  avgSpin: number;
+}
+
+const similarMLBPitchers: SimilarPitcher[] = [`;
+            for (const p of similarPitchers) {
                 context += `
-${i + 1}. ${p.pitcher_name} (${p.similarity_pct}% match) - ${p.avg_velo} mph, ${p.avg_spin} rpm`;
-            });
+  { name: "${p.pitcher_name}", similarity: ${p.similarity_pct}, avgVelo: ${p.avg_velo}, avgSpin: ${p.avg_spin} },`;
+            }
+            context += `
+];`;
         }
 
-        // Add key insights
+        // Add summary
         context += `
 
-KEY INSIGHTS FOR COACHING:
-• Overall velocity: ${overallVelo.toFixed(1)} mph average across all pitches
-• Overall spin: ${Math.round(overallSpin)} rpm average
-• Arsenal depth: ${arsenal.length} pitch type${arsenal.length > 1 ? 's' : ''}
-• Sample size: ${totalPitches} total pitches logged`;
+// KEY INSIGHTS
+const insights = {
+  overallVelocity: ${overallVelo.toFixed(1)}, // mph average
+  overallSpin: ${Math.round(overallSpin)}, // rpm average
+  arsenalDepth: ${arsenal.length}, // pitch types
+  sampleSize: ${totalPitches} // total pitches logged
+};
+\`\`\``;
 
         return context;
 

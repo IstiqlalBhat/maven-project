@@ -814,13 +814,141 @@ body {
    RESPONSIVE
    ============================================================================= */
 
+/* Mobile-first responsive utilities */
+
+/* Mobile header spacing for pages with sidebar */
+.mobile-header-spacing {
+  padding-top: 4rem; /* 64px for mobile header */
+}
+
+@media (min-width: 1024px) {
+  .mobile-header-spacing {
+    padding-top: 0;
+  }
+}
+
+/* Responsive main content area */
+.main-content {
+  margin-left: 0;
+  padding: 1rem;
+  padding-top: 5rem; /* Account for mobile header */
+}
+
+@media (min-width: 1024px) {
+  .main-content {
+    margin-left: 16rem; /* 256px = w-64 */
+    padding: 2rem;
+    padding-top: 2rem;
+  }
+
+  .main-content.sidebar-collapsed {
+    margin-left: 5rem; /* 80px = w-20 */
+  }
+}
+
+/* Tablet breakpoint */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main-content {
+    padding: 1.5rem;
+    padding-top: 5rem;
+  }
+}
+
+/* Small screens */
 @media (max-width: 768px) {
   .sidebar {
     width: var(--sidebar-collapsed);
   }
 
   .stat-value {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+  }
+
+  .stat-value-lg {
+    font-size: 1.75rem;
+  }
+
+  .glass-card {
+    border-radius: 16px;
+    padding: 1rem;
+  }
+
+  .glass-chart {
+    border-radius: 16px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-width: none;
+    margin: 1rem;
+    padding: 1.25rem;
+    border-radius: 20px;
+    max-height: calc(100vh - 2rem);
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 0.625rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .btn-primary {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.95rem;
+  }
+
+  .input-field {
+    padding: 0.875rem 1rem;
+    font-size: 1rem; /* Prevents zoom on iOS */
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .stat-value {
+    font-size: 1.1rem;
+  }
+
+  .glass-card {
+    padding: 0.875rem;
+  }
+
+  .modal-content {
+    padding: 1rem;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .nav-item {
+    padding: 0.875rem 1rem;
+    min-height: 48px;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    min-height: 48px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .glass-card:hover {
+    transform: none;
+  }
+
+  .glass-chart:hover {
+    transform: none;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .modal-overlay {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .sidebar {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 

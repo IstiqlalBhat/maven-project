@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
     try {
         const result = await query(
-            'SELECT * FROM user_pitchers WHERE firebase_uid = $1 OR firebase_uid IS NULL ORDER BY created_at DESC',
+            'SELECT * FROM user_pitchers WHERE firebase_uid = $1 ORDER BY created_at DESC',
             [uid]
         );
         return NextResponse.json(result.rows);

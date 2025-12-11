@@ -1,8 +1,16 @@
+/**
+ * Client-side authentication utilities for making authenticated API requests
+ * This module provides helpers for attaching Firebase ID tokens to requests
+ */
+
 import { auth } from './firebase';
 
 /**
  * Fetch wrapper that includes Firebase authentication token
- * Use this for all authenticated API calls
+ * Use this for all authenticated API calls from the client
+ * 
+ * @param url - API endpoint URL
+ * @param options - Fetch options
  */
 export async function authFetch(
     url: string,

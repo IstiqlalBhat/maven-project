@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query, withTransaction } from '@/lib/postgres';
+import { query } from '@/lib/postgres';
 import { requireUserAuth } from '@/lib/auth-middleware';
 import { apiRateLimiter } from '@/lib/rate-limiter';
 import { parseIdParam, sanitizeString } from '@/lib/validation';
@@ -13,7 +13,7 @@ interface RouteParams {
  */
 async function verifyPitcherOwnership(pitcherId: number, uid: string): Promise<boolean> {
     const result = await query(
-        'SELECT id FROM user_pitchers WHERE id = $1 AND (firebase_uid = $2 OR firebase_uid IS NULL)',
+        'SELECT id FROM user_pitchers WHERE id = $1 AND firebase_uid = $2',
         [pitcherId, uid]
     );
     return result.rows.length > 0;
@@ -156,10 +156,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
             return NextResponse.json({ error: 'Pitcher not found' }, { status: 404 });
         }
 
-        await withTransaction(async (client) => {
-            // Pitches are deleted automatically via ON DELETE CASCADE
-            await client.query('DELETE FROM user_pitchers WHERE id = $1', [pitcherId]);
-        });
+        // Pitches are deleted automatically via ON DELETE CASCADE
+        await query('DELETE FROM user_pitchers WHERE id = $1', [pitcherId]);
 
         return NextResponse.json({ success: true });
     } catch (error) {

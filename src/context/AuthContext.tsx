@@ -25,15 +25,34 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [authResolved, setAuthResolved] = useState(false);
+    const [minLoadingComplete, setMinLoadingComplete] = useState(false);
 
+    // Firebase auth state listener
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
-            setLoading(false);
+            setAuthResolved(true);
         });
 
         return () => unsubscribe();
     }, []);
+
+    // Minimum loading time to ensure auth is fully initialized
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setMinLoadingComplete(true);
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    // Only set loading false when both auth resolves AND minimum time passes
+    useEffect(() => {
+        if (authResolved && minLoadingComplete) {
+            setLoading(false);
+        }
+    }, [authResolved, minLoadingComplete]);
 
     const signOut = async () => {
         await firebaseSignOut(auth);

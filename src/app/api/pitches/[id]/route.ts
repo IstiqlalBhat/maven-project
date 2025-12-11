@@ -12,13 +12,25 @@ interface RouteParams {
  * Verify that the authenticated user owns the pitch (via pitcher ownership)
  */
 async function verifyPitchOwnership(pitchId: number, uid: string): Promise<boolean> {
-    const result = await query(
-        `SELECT p.id FROM user_pitches p
-         JOIN user_pitchers pit ON p.pitcher_id = pit.id
-         WHERE p.id = $1 AND (pit.firebase_uid = $2 OR pit.firebase_uid IS NULL)`,
-        [pitchId, uid]
+    // First get the pitch to find its pitcher_id
+    const pitchResult = await query(
+        'SELECT pitcher_id FROM user_pitches WHERE id = $1',
+        [pitchId]
     );
-    return result.rows.length > 0;
+
+    if (pitchResult.rows.length === 0) {
+        return false;
+    }
+
+    const pitcherId = pitchResult.rows[0].pitcher_id;
+
+    // Then verify the user owns that pitcher
+    const pitcherResult = await query(
+        'SELECT id FROM user_pitchers WHERE id = $1 AND (firebase_uid = $2 OR firebase_uid IS NULL)',
+        [pitcherId, uid]
+    );
+
+    return pitcherResult.rows.length > 0;
 }
 
 // GET /api/pitches/[id] - Get a single pitch

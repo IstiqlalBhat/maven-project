@@ -55,29 +55,29 @@ export default function PitcherPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Redirect to login if not authenticated
-    useEffect(() => {
-        if (!authLoading && !user) {
-            router.push('/login');
-        }
-    }, [user, authLoading, router]);
-
-    // Fetch pitcher info
+    // Fetch pitcher info (user guard for data fetching)
     useEffect(() => {
         if (!user) return;
         setIsLoading(true);
         authGet(`/api/pitchers/${pitcherId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    router.push('/');
-                    return;
+            .then(res => {
+                if (!res.ok) {
+                    if (res.status === 404 || res.status === 403) {
+                        router.push('/');
+                    }
+                    setIsLoading(false);
+                    return null;
                 }
-                setPitcher(data);
-                setEditForm(data);
+                return res.json();
+            })
+            .then(data => {
+                if (data) {
+                    setPitcher(data);
+                    setEditForm(data);
+                }
                 setIsLoading(false);
             })
-            .catch(() => router.push('/'));
+            .catch(() => setIsLoading(false));
     }, [pitcherId, router, user]);
 
     // Fetch pitch stats

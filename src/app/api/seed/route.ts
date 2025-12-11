@@ -53,6 +53,14 @@ export async function POST(request: Request) {
             season,
         });
 
+        // Refresh materialized view for similar pitchers feature
+        try {
+            await query('REFRESH MATERIALIZED VIEW mv_pitcher_stats');
+        } catch (refreshError) {
+            console.warn('Could not refresh materialized view:', refreshError);
+            // Continue anyway - view might not exist yet
+        }
+
         const stats = await getMLBDataStats();
 
         return NextResponse.json({
@@ -70,7 +78,13 @@ export async function POST(request: Request) {
 }
 
 // GET /api/seed - Check current data status
-export async function GET() {
+export async function GET(request: Request) {
+    // Require admin authentication to view database stats
+    const authError = await requireAdminAuth();
+    if (authError) {
+        return authError;
+    }
+
     try {
         await initializeDatabase();
 

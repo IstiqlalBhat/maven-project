@@ -24,7 +24,19 @@ export default function DataStats() {
         setLoading(true);
         setError('');
         try {
-            const res = await fetch('/api/seed');
+            const res = await fetch('/api/seed', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            // Handle auth errors
+            if (res.status === 401) {
+                logout();
+                setError('Session expired. Please log in again.');
+                return;
+            }
+
             const data = await res.json();
             if (data.stats) {
                 setStats(data.stats);

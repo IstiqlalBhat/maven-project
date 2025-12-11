@@ -25,8 +25,6 @@ export async function POST(request: Request) {
             season = 2024,
         } = body;
 
-        console.log(`🔍 Preview request for ${startDate} to ${endDate}`);
-
         const preview = await previewMLBData({
             startDate,
             endDate,

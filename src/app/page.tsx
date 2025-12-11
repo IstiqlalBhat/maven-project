@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Plus, BarChart2, Target, Brain, LogIn, UserPlus, Loader2, Trash2, LogOut } from 'lucide-react';
+import { ArrowRight, Plus, BarChart2, Target, Brain, LogIn, UserPlus, Loader2, Trash2, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { authGet, authDelete } from '@/lib/auth-fetch';
@@ -74,30 +74,30 @@ export default function LandingPage() {
       <div className="min-h-screen flex flex-col">
         {/* Background decorative elements */}
         <div className="fixed inset-0 -z-10 overflow-hidden">
-          <div className="absolute top-20 right-20 w-96 h-96 bg-amber-200/40 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 left-20 w-80 h-80 bg-orange-200/30 rounded-full blur-3xl" />
+          <div className="absolute top-10 right-5 sm:top-20 sm:right-20 w-48 sm:w-96 h-48 sm:h-96 bg-amber-200/40 rounded-full blur-3xl" />
+          <div className="absolute bottom-10 left-5 sm:bottom-20 sm:left-20 w-40 sm:w-80 h-40 sm:h-80 bg-orange-200/30 rounded-full blur-3xl" />
         </div>
 
         {/* Hero Section */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
           <div className="text-center max-w-4xl mx-auto stagger-children">
             {/* Logo */}
-            <div className="w-24 h-24 bg-gradient-to-br from-amber-400 to-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-amber-500/30">
-              <span className="text-5xl">⚾</span>
+            <div className="w-16 sm:w-20 lg:w-24 h-16 sm:h-20 lg:h-24 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-6 sm:mb-8 shadow-2xl shadow-amber-500/30">
+              <span className="text-3xl sm:text-4xl lg:text-5xl">⚾</span>
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-bold text-gray-800 mb-6 tracking-tight">
+            <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold text-gray-800 mb-4 sm:mb-6 tracking-tight">
               Master Your <span className="gradient-text">Arsenal</span>
             </h1>
 
-            <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 mb-8 sm:mb-12 max-w-2xl mx-auto leading-relaxed px-2">
               The professional grade pitch tracking platform. Analyze stats, compare against MLB benchmarks, and get AI-driven coaching insights.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center px-4 sm:px-0">
               <Link
                 href="/register"
-                className="px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 flex items-center gap-2 group"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 flex items-center justify-center gap-2 group"
               >
                 <UserPlus size={20} />
                 Get Started
@@ -106,7 +106,7 @@ export default function LandingPage() {
 
               <Link
                 href="/login"
-                className="px-8 py-4 glass-card hover:bg-white/80 text-gray-700 font-semibold rounded-xl transition-all flex items-center gap-2"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 glass-card hover:bg-white/80 text-gray-700 font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
               >
                 <LogIn size={20} />
                 Sign In
@@ -115,26 +115,26 @@ export default function LandingPage() {
           </div>
 
           {/* Feature Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20 max-w-5xl w-full stagger-children">
-            <div className="glass-card p-6">
-              <BarChart2 className="text-amber-600 mb-4" size={32} />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Advanced Analytics</h3>
-              <p className="text-gray-600">Track velocity, spin rate, and break with professional precision.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-12 sm:mt-16 lg:mt-20 max-w-5xl w-full stagger-children px-4 sm:px-0">
+            <div className="glass-card p-5 sm:p-6">
+              <BarChart2 className="text-amber-600 mb-3 sm:mb-4" size={28} />
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Advanced Analytics</h3>
+              <p className="text-sm sm:text-base text-gray-600">Track velocity, spin rate, and break with professional precision.</p>
             </div>
-            <div className="glass-card p-6">
-              <Target className="text-amber-600 mb-4" size={32} />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">MLB Benchmarks</h3>
-              <p className="text-gray-600">Compare your metrics against league averages and top performers.</p>
+            <div className="glass-card p-5 sm:p-6">
+              <Target className="text-amber-600 mb-3 sm:mb-4" size={28} />
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">MLB Benchmarks</h3>
+              <p className="text-sm sm:text-base text-gray-600">Compare your metrics against league averages and top performers.</p>
             </div>
-            <div className="glass-card p-6">
-              <Brain className="text-amber-600 mb-4" size={32} />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">AI Coaching</h3>
-              <p className="text-gray-600">Receive personalized development plans powered by AI.</p>
+            <div className="glass-card p-5 sm:p-6 sm:col-span-2 lg:col-span-1">
+              <Brain className="text-amber-600 mb-3 sm:mb-4" size={28} />
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">AI Coaching</h3>
+              <p className="text-sm sm:text-base text-gray-600">Receive personalized development plans powered by AI.</p>
             </div>
           </div>
         </div>
 
-        <footer className="text-center py-6 text-sm text-gray-400">
+        <footer className="text-center py-4 sm:py-6 text-xs sm:text-sm text-gray-400 px-4">
           Built for Maven Labs • Powered by MLB Statcast Data
         </footer>
       </div>
@@ -145,42 +145,42 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header with user info and sign out */}
-      <header className="flex justify-between items-center px-6 py-4 border-b border-gray-200/50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
-            <span className="text-xl">⚾</span>
+      <header className="flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200/50">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-9 sm:w-10 h-9 sm:h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+            <span className="text-lg sm:text-xl">⚾</span>
           </div>
-          <span className="font-bold text-gray-800">Maven Arsenal</span>
+          <span className="font-bold text-gray-800 text-sm sm:text-base">Maven Arsenal</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">{user.email}</span>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <span className="text-xs sm:text-sm text-gray-600 hidden sm:block truncate max-w-[150px]">{user.email}</span>
           <button
             onClick={signOut}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <LogOut size={16} />
-            Sign Out
+            <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
         <div className="text-center max-w-3xl mx-auto stagger-children">
-          <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <span className="text-3xl">⚾</span>
+          <div className="w-14 sm:w-16 h-14 sm:h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg">
+            <span className="text-2xl sm:text-3xl">⚾</span>
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
             Welcome Back
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
             Manage your pitchers and analyze performance.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4 sm:px-0">
             <button
               onClick={() => router.push('/create-profile')}
-              className="btn-primary text-lg px-8 py-4 flex items-center justify-center gap-2"
+              className="btn-primary text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 flex items-center justify-center gap-2"
             >
               <Plus size={20} />
               New Pitcher Profile
@@ -190,48 +190,58 @@ export default function LandingPage() {
 
         {/* Existing Pitchers */}
         {isLoadingPitchers ? (
-          <div className="mt-12">
+          <div className="mt-8 sm:mt-12">
             <div className="loading-spinner mx-auto" />
           </div>
         ) : pitchers.length > 0 && (
-          <div className="mt-12 w-full max-w-xl animate-in">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4 text-center">
+          <div className="mt-8 sm:mt-12 w-full max-w-xl animate-in px-4 sm:px-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 sm:mb-4 text-center">
               Your Profiles
             </h3>
             <div className="glass-card divide-y divide-gray-100">
               {pitchers.map((pitcher) => (
                 <div
                   key={pitcher.id}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-amber-50/50 transition-colors"
+                  className="w-full flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 hover:bg-amber-50/50 transition-colors"
                 >
                   <button
                     onClick={() => router.push(`/dashboard/${pitcher.id}`)}
-                    className="flex items-center gap-3 flex-1 text-left"
+                    className="flex items-center gap-2 sm:gap-3 flex-1 text-left min-w-0"
                   >
-                    <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-white font-bold">
+                    <div className="w-9 sm:w-10 h-9 sm:h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 text-sm sm:text-base">
                       {pitcher.name.charAt(0)}
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-800">{pitcher.name}</p>
-                      <p className="text-sm text-gray-500">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-800 text-sm sm:text-base truncate">{pitcher.name}</p>
+                      <p className="text-xs sm:text-sm text-gray-500">
                         {pitcher.throws === 'R' ? 'RHP' : 'LHP'} • {pitcher.level}
                       </p>
                     </div>
                   </button>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/pitcher/${pitcher.id}`);
+                      }}
+                      className="p-1.5 sm:p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                      title="Edit profile"
+                    >
+                      <Settings size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    </button>
                     <button
                       onClick={(e) => handleDeletePitcher(e, pitcher.id, pitcher.name)}
                       disabled={deletingId === pitcher.id}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      className="p-1.5 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                       title="Delete profile"
                     >
                       {deletingId === pitcher.id ? (
-                        <Loader2 size={18} className="animate-spin" />
+                        <Loader2 size={16} className="animate-spin sm:w-[18px] sm:h-[18px]" />
                       ) : (
-                        <Trash2 size={18} />
+                        <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
                       )}
                     </button>
-                    <ArrowRight className="text-gray-400" size={20} />
+                    <ArrowRight className="text-gray-400 hidden sm:block" size={20} />
                   </div>
                 </div>
               ))}
@@ -240,7 +250,7 @@ export default function LandingPage() {
         )}
       </div>
 
-      <footer className="text-center py-6 text-sm text-gray-400">
+      <footer className="text-center py-4 sm:py-6 text-xs sm:text-sm text-gray-400 px-4">
         Built for Maven Labs • Powered by MLB Statcast Data
       </footer>
     </div>

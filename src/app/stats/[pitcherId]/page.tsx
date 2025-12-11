@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { BarChart2, Target, Activity, PieChart, Radar, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import StatsCard from '@/components/StatsCard';
-import PercentileBar from '@/components/PercentileBar';
+import ArsenalOverview from '@/components/ArsenalOverview';
 import {
     VelocityBarChart,
     ComparisonBarChart,
@@ -76,26 +76,23 @@ export default function StatsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'comparison'>('overview');
 
-    // Redirect to login if not authenticated
-    useEffect(() => {
-        if (!authLoading && !user) {
-            router.push('/login');
-        }
-    }, [user, authLoading, router]);
-
-    // Fetch pitcher info
+    // Fetch pitcher info (user guard for data fetching)
     useEffect(() => {
         if (!user) return;
         authGet(`/api/pitchers/${pitcherId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    router.push('/');
-                    return;
+            .then(res => {
+                if (!res.ok) {
+                    if (res.status === 404 || res.status === 403) {
+                        router.push('/');
+                    }
+                    return null;
                 }
-                setPitcher(data);
+                return res.json();
             })
-            .catch(() => router.push('/'));
+            .then(data => {
+                if (data) setPitcher(data);
+            })
+            .catch(() => { });
     }, [pitcherId, router, user]);
 
     // Fetch pitches
@@ -253,14 +250,24 @@ export default function StatsPage() {
     const pitchTypeStats = pitchTypes.map(type => {
         const typePitches = pitches.filter(p => p.pitch_type === type);
         const comparison = comparisons.find(c => c.pitchType === type);
+        const veloData = typePitches.filter(p => p.velocity_mph);
+        const spinData = typePitches.filter(p => p.spin_rate);
+        const hBreakData = typePitches.filter(p => p.horizontal_break != null);
+        const vBreakData = typePitches.filter(p => p.vertical_break != null);
+
         return {
             type,
             count: typePitches.length,
-            avgVelo: typePitches.filter(p => p.velocity_mph).reduce((sum, p) => sum + (p.velocity_mph || 0), 0) / typePitches.filter(p => p.velocity_mph).length || 0,
-            avgSpin: typePitches.filter(p => p.spin_rate).reduce((sum, p) => sum + (p.spin_rate || 0), 0) / typePitches.filter(p => p.spin_rate).length || 0,
-            maxVelo: Math.max(...typePitches.filter(p => p.velocity_mph).map(p => p.velocity_mph || 0), 0),
-            maxSpin: Math.max(...typePitches.filter(p => p.spin_rate).map(p => p.spin_rate || 0), 0),
-            comparison,
+            avgVelo: veloData.length > 0 ? veloData.reduce((sum, p) => sum + (p.velocity_mph || 0), 0) / veloData.length : 0,
+            avgSpin: spinData.length > 0 ? spinData.reduce((sum, p) => sum + (p.spin_rate || 0), 0) / spinData.length : 0,
+            maxVelo: veloData.length > 0 ? Math.max(...veloData.map(p => p.velocity_mph || 0)) : 0,
+            maxSpin: spinData.length > 0 ? Math.max(...spinData.map(p => p.spin_rate || 0)) : 0,
+            avgHBreak: hBreakData.length > 0 ? hBreakData.reduce((sum, p) => sum + (p.horizontal_break || 0), 0) / hBreakData.length : 0,
+            avgVBreak: vBreakData.length > 0 ? vBreakData.reduce((sum, p) => sum + (p.vertical_break || 0), 0) / vBreakData.length : 0,
+            comparison: comparison ? {
+                percentiles: comparison.percentiles,
+                mlbStats: comparison.mlbStats
+            } : undefined,
         };
     });
 
@@ -359,68 +366,12 @@ export default function StatsPage() {
                 </div>
 
                 {activeTab === 'overview' && (
-                    <>
-                        {/* Pitch Type Breakdown */}
-                        <div className="glass-card p-6 mb-8">
-                            <h2 className="text-lg font-semibold text-neutral-800 mb-4 flex items-center gap-2">
-                                <Activity size={20} className="text-amber-500" />
-                                Pitch Type Breakdown
-                            </h2>
-
-                            {pitchTypeStats.length === 0 ? (
-                                <p className="text-neutral-500 text-center py-8">No pitches recorded yet.</p>
-                            ) : (
-                                <div className="space-y-6">
-                                    {pitchTypeStats.map((stat, idx) => (
-                                        <div key={idx} className="border-b border-neutral-100 pb-6 last:border-0 last:pb-0">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <h3 className="font-medium text-neutral-800">{stat.type}</h3>
-                                                <span className="text-sm text-neutral-500">{stat.count} pitches</span>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                                <div className="bg-neutral-50 p-3 rounded-lg">
-                                                    <p className="text-xs text-neutral-500 mb-1">Avg Velocity</p>
-                                                    <p className="font-semibold text-neutral-800">{stat.avgVelo.toFixed(1)} mph</p>
-                                                </div>
-                                                <div className="bg-neutral-50 p-3 rounded-lg">
-                                                    <p className="text-xs text-neutral-500 mb-1">Max Velocity</p>
-                                                    <p className="font-semibold text-neutral-800">{stat.maxVelo.toFixed(1)} mph</p>
-                                                </div>
-                                                <div className="bg-neutral-50 p-3 rounded-lg">
-                                                    <p className="text-xs text-neutral-500 mb-1">Avg Spin</p>
-                                                    <p className="font-semibold text-neutral-800">{Math.round(stat.avgSpin).toLocaleString()} rpm</p>
-                                                </div>
-                                                <div className="bg-neutral-50 p-3 rounded-lg">
-                                                    <p className="text-xs text-neutral-500 mb-1">Max Spin</p>
-                                                    <p className="font-semibold text-neutral-800">{Math.round(stat.maxSpin).toLocaleString()} rpm</p>
-                                                </div>
-                                            </div>
-
-                                            {stat.comparison && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <PercentileBar
-                                                        label="Velocity vs MLB"
-                                                        value={stat.avgVelo}
-                                                        percentile={stat.comparison.percentiles.velocity}
-                                                        unit="mph"
-                                                        mlbAvg={stat.comparison.mlbStats.avgVelo}
-                                                    />
-                                                    <PercentileBar
-                                                        label="Spin Rate vs MLB"
-                                                        value={stat.avgSpin}
-                                                        percentile={stat.comparison.percentiles.spinRate}
-                                                        unit="rpm"
-                                                        mlbAvg={stat.comparison.mlbStats.avgSpin}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </>
+                    <div className="glass-card p-6 mb-8">
+                        <ArsenalOverview
+                            pitchTypes={pitchTypeStats}
+                            totalPitches={pitches.length}
+                        />
+                    </div>
                 )}
 
                 {activeTab === 'charts' && (

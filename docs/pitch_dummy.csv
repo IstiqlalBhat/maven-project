@@ -1,0 +1,49 @@
+pitch_type,velocity_mph,spin_rate,horizontal_break,vertical_break,date,notes
+Fastball,96.1,2410,7.8,14.9,2024-03-12,Live BP
+Fastball,95.4,2325,8.2,15.1,2024-03-12,Good ride
+Fastball,94.8,2450,7.1,15.8,2024-03-12,High intent
+Fastball,97.2,2520,6.9,14.3,2024-03-13,Game simulation
+Fastball,95.9,2380,8.5,14.7,2024-03-13,Felt strong
+Sinker,93.2,2150,15.4,9.6,2024-03-12,Arm-side run
+Sinker,92.8,2085,14.9,10.1,2024-03-12,Working on movement
+Sinker,94.0,2205,16.2,9.3,2024-03-13,Heavy action
+Sinker,93.6,2100,15.7,10.4,2024-03-15,Bullpen
+Sinker,92.9,2250,14.2,10.0,2024-03-15,Good command
+Slider,87.5,2650,-4.8,2.6,2024-03-12,Sharp break
+Slider,86.9,2580,-5.2,1.9,2024-03-12,Good movement
+Slider,88.1,2710,-4.2,3.1,2024-03-13,Wipeout
+Slider,87.3,2605,-6.0,2.4,2024-03-14,Back foot slider
+Slider,86.4,2550,-5.6,2.2,2024-03-14,Repeatable shape
+Curveball,78.6,2820,-6.4,-3.7,2024-03-12,Big drop
+Curveball,79.1,2750,-7.1,-4.2,2024-03-13,Early break
+Curveball,77.8,2890,-6.8,-5.0,2024-03-13,Better depth
+Curveball,78.2,2705,-5.9,-3.3,2024-03-15,Loose grip testing
+Curveball,79.4,2815,-7.5,-4.7,2024-03-15,Game feel
+Changeup,84.3,1850,12.3,7.9,2024-03-12,Good fade
+Changeup,83.7,1905,11.5,8.4,2024-03-12,Felt good
+Changeup,85.1,1950,13.1,7.2,2024-03-13,Sell it more
+Changeup,84.0,1880,12.0,8.0,2024-03-13,Filthy
+Changeup,83.4,1810,11.8,7.6,2024-03-14,Consistency work
+Cutter,89.7,2450,2.4,9.1,2024-03-12,Glove-side cut
+Cutter,90.2,2520,1.9,8.7,2024-03-12,Hard cutter
+Cutter,88.9,2400,3.2,9.5,2024-03-13,Weak contact generator
+Cutter,89.4,2475,2.8,8.9,2024-03-14,Good tunnel
+Cutter,90.0,2510,1.5,9.3,2024-03-14,Game session
+Splitter,85.8,1600,1.4,-6.2,2024-03-12,Great drop
+Splitter,86.4,1500,0.9,-7.0,2024-03-12,Fell off table
+Splitter,84.7,1555,1.7,-5.8,2024-03-13,Trying new grip
+Splitter,86.1,1480,2.0,-6.4,2024-03-15,Sharp movement
+Splitter,85.3,1580,0.4,-7.3,2024-03-15,Unhittable today
+Fastball,96.4,2360,8.0,15.0,2024-03-16,High velocity day
+Fastball,95.1,2290,7.4,14.2,2024-03-16,Good command
+Sinker,93.4,2180,15.0,9.4,2024-03-16,Heavy run
+Slider,87.0,2620,-5.1,2.0,2024-03-16,Put-away pitch
+Curveball,78.9,2775,-6.2,-4.5,2024-03-16,More depth
+Changeup,84.6,1920,12.5,7.4,2024-03-16,Arm speed improving
+Cutter,89.8,2430,2.7,8.8,2024-03-16,Short movement
+Splitter,85.2,1520,1.3,-6.8,2024-03-16,Good dive
+Fastball,96.7,2500,6.8,15.2,2024-03-17,Great outing
+Slider,87.9,2700,-4.3,3.0,2024-03-17,Best pitch today
+Changeup,83.9,1780,13.3,8.1,2024-03-17,Big fade
+Curveball,78.4,2850,-7.0,-4.9,2024-03-17,Sharp break
+Cutter,90.3,2560,1.0,9.7,2024-03-17,Cutter command dialed

@@ -118,20 +118,7 @@ export default function MovementChart({
         },
         plugins: {
             legend: {
-                display: true,
-                position: 'top' as const,
-                align: 'end' as const,
-                labels: {
-                    usePointStyle: true,
-                    padding: 20,
-                    font: {
-                        size: 11,
-                        weight: 500,
-                    },
-                    color: '#6b7280',
-                    boxWidth: 8,
-                    boxHeight: 8,
-                },
+                display: false, // Hide default legend, use custom one instead
             },
             tooltip: {
                 backgroundColor: 'rgba(255, 255, 255, 0.98)',
@@ -206,27 +193,27 @@ export default function MovementChart({
     };
 
     return (
-        <div className={`glass-chart p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`glass-chart p-4 lg:p-6 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 lg:mb-6">
                 <div>
-                    <h3 className="font-semibold text-gray-800 text-lg">{title}</h3>
-                    <p className="text-xs text-gray-500 mt-1">Compare your pitch movement to MLB averages</p>
+                    <h3 className="font-semibold text-gray-800 text-base lg:text-lg">{title}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 lg:mt-1">Compare your pitch movement to MLB averages</p>
                 </div>
-                <div className="flex items-center gap-4 text-xs">
-                    <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 backdrop-blur-sm border border-white/60">
-                        <span className="w-3 h-3 rounded-full border-2 border-amber-400 bg-white" />
-                        <span className="text-gray-600 font-medium">MLB Avg</span>
+                <div className="flex items-center gap-2 lg:gap-4 text-xs">
+                    <span className="flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1 lg:py-1.5 rounded-full bg-white/70 backdrop-blur-sm border border-white/60">
+                        <span className="w-2.5 lg:w-3 h-2.5 lg:h-3 rounded-full border-2 border-amber-400 bg-white" />
+                        <span className="text-gray-600 font-medium">MLB</span>
                     </span>
-                    <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200/60">
-                        <span className="w-3 h-3 rounded-full bg-amber-500 border border-white" />
-                        <span className="text-gray-700 font-medium">Your Pitches</span>
+                    <span className="flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1 lg:py-1.5 rounded-full bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200/60">
+                        <span className="w-2.5 lg:w-3 h-2.5 lg:h-3 rounded-full bg-amber-500 border border-white" />
+                        <span className="text-gray-700 font-medium">You</span>
                     </span>
                 </div>
             </div>
 
             {/* Chart Container */}
-            <div className="h-[340px] relative">
+            <div className="h-[260px] sm:h-[300px] lg:h-[340px] relative">
                 {/* Subtle grid overlay effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-transparent via-amber-50/10 to-transparent rounded-xl pointer-events-none" />
                 <Scatter ref={chartRef} data={data} options={options} />
@@ -234,15 +221,18 @@ export default function MovementChart({
 
             {/* Quick Stats Footer */}
             {userPitches.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-white/40 flex gap-4 justify-center">
-                    {userPitches.slice(0, 4).map((pitch, idx) => (
-                        <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/40 backdrop-blur-sm">
+                <div className="mt-3 lg:mt-4 pt-3 lg:pt-4 border-t border-white/40 flex flex-wrap gap-2 lg:gap-3 justify-center">
+                    {userPitches.map((pitch) => (
+                        <div
+                            key={`pitch-stat-${pitch.pitchType}`}
+                            className="flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg bg-white/40 backdrop-blur-sm"
+                        >
                             <div
-                                className="w-2 h-2 rounded-full"
+                                className="w-2 lg:w-2.5 h-2 lg:h-2.5 rounded-full"
                                 style={{ backgroundColor: getUserPitchColor(pitch.pitchType) }}
                             />
-                            <span className="text-xs font-medium text-gray-700">{pitch.pitchType}</span>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-[10px] lg:text-xs font-medium text-gray-700">{pitch.pitchType}</span>
+                            <span className="text-[10px] lg:text-xs text-gray-500">
                                 {pitch.avgHBreak.toFixed(1)}&quot; / {pitch.avgVBreak.toFixed(1)}&quot;
                             </span>
                         </div>

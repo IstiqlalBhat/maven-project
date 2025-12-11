@@ -45,7 +45,7 @@ yarn-error.log*
 next-env.d.ts
 
 # User exclusions
-*.md
+
 !README.md
 !readme.md
 !DOCUMENTATION.md

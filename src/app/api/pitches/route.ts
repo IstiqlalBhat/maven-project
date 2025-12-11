@@ -52,13 +52,21 @@ export async function GET(request: Request) {
                 [pitcherId]
             );
         } else {
+            // Get all user's pitcher IDs first
+            const pitchersResult = await query(
+                'SELECT id FROM user_pitchers WHERE firebase_uid = $1 OR firebase_uid IS NULL',
+                [uid]
+            );
+            const pitcherIds = pitchersResult.rows.map(row => row.id);
+
+            if (pitcherIds.length === 0) {
+                return NextResponse.json([]);
+            }
+
             // Get pitches for all user's pitchers
             result = await query(
-                `SELECT p.* FROM user_pitches p
-                 JOIN user_pitchers pit ON p.pitcher_id = pit.id
-                 WHERE pit.firebase_uid = $1 OR pit.firebase_uid IS NULL
-                 ORDER BY p.created_at DESC`,
-                [uid]
+                'SELECT * FROM user_pitches WHERE pitcher_id = ANY($1) ORDER BY created_at DESC',
+                [pitcherIds]
             );
         }
 
@@ -122,7 +130,7 @@ export async function POST(request: Request) {
         const { pitch_type, velocity_mph, spin_rate, horizontal_break, vertical_break, date, notes } = validation.data!;
 
         const result = await query(
-            `INSERT INTO user_pitches 
+            `INSERT INTO user_pitches
        (pitcher_id, pitch_type, velocity_mph, spin_rate, horizontal_break, vertical_break, date, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,

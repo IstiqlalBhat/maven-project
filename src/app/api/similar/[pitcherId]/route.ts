@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/postgres';
+import { query, getClient } from '@/lib/postgres';
 import { requireUserAuth } from '@/lib/auth-middleware';
 import { apiRateLimiter } from '@/lib/rate-limiter';
 import { parseIdParam } from '@/lib/validation';
+import { UserPitch } from '@/shared/types';
 
 interface RouteParams {
     params: Promise<{ pitcherId: string }>;
@@ -50,7 +51,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         }
 
         // Get user's pitches
-        const userPitchesResult = await query(
+        const userPitchesResult = await query<UserPitch>(
             'SELECT * FROM user_pitches WHERE pitcher_id = $1',
             [id]
         );
@@ -61,8 +62,13 @@ export async function GET(request: Request, { params }: RouteParams) {
         }
 
         // Calculate user's average stats
-        const userVelos = userPitches.filter(p => p.velocity_mph).map(p => parseFloat(p.velocity_mph));
-        const userSpins = userPitches.filter(p => p.spin_rate).map(p => parseInt(p.spin_rate));
+        const userVelos = userPitches
+            .filter(p => p.velocity_mph)
+            .map(p => parseFloat(String(p.velocity_mph)));
+
+        const userSpins = userPitches
+            .filter(p => p.spin_rate)
+            .map(p => parseInt(String(p.spin_rate)));
 
         const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
         const userAvgVelo = avg(userVelos);
@@ -76,32 +82,65 @@ export async function GET(request: Request, { params }: RouteParams) {
 
         // Find similar MLB pitchers using pre-calculated stats from materialized view
         // This is much faster than aggregating 100k+ rows on every request
-        const similarResult = await query(
-            `SELECT 
-                pitcher_name as name,
-                avg_velo,
-                avg_spin,
-                pitch_count,
-                -- Euclidean distance calculation (normalized)
-                SQRT(
-                    POWER((avg_velo - $1) / 10.0, 2) + 
-                    POWER((avg_spin - $2) / 500.0, 2)
-                ) as distance
-            FROM mv_pitcher_stats
-            ORDER BY distance ASC
-            LIMIT 5`,
-            [userAvgVelo || 90, userAvgSpin || 2200]
-        );
+        // We'll fetch all pitcher stats (small dataset ~2000 rows) and sort in memory
+        // to avoid complex SQL parsing issues with Supabase JS client
+        let similarRows: any[] = [];
+        const client = await getClient();
 
-        // Convert distance to similarity percentage
-        const similarPitchers = similarResult.rows.map(row => ({
-            name: row.name,
-            avgVelo: parseFloat(row.avg_velo),
-            avgSpin: Math.round(parseFloat(row.avg_spin)),
-            pitchCount: parseInt(row.pitch_count),
-            // Convert distance to similarity (inverse relationship)
-            similarity: Math.max(0, Math.round(100 - (parseFloat(row.distance) * 20))),
-        }));
+        try {
+            const { data: rows, error: selectError } = await client
+                .from('mv_pitcher_stats')
+                .select('pitcher_name, avg_velo, avg_spin, pitch_count')
+                .limit(5000); // Fetch all pitchers
+
+            if (selectError) throw selectError;
+            similarRows = rows || [];
+
+        } catch (error: any) {
+            // Gracefully handle missing materialized view
+            if (error.message && error.message.includes('does not exist')) {
+                console.warn('Materialized view mv_pitcher_stats missing.');
+                return NextResponse.json({
+                    pitcherId: id,
+                    userStats: { avgVelo: userAvgVelo, avgSpin: Math.round(userAvgSpin) },
+                    overall: [],
+                    warning: 'Comparison data not available yet.'
+                });
+            }
+            throw error;
+        }
+
+        // Calculate distance and sort in JS
+        // Euclidean distance normalization factors
+        const v = userAvgVelo || 90;
+        const s = userAvgSpin || 2200;
+        const VELO_Norm = 10.0;
+        const SPIN_Norm = 500.0;
+
+        const processed = similarRows.map(row => {
+            const rowVelo = parseFloat(row.avg_velo);
+            const rowSpin = parseFloat(row.avg_spin);
+
+            const dist = Math.sqrt(
+                Math.pow((rowVelo - v) / VELO_Norm, 2) +
+                Math.pow((rowSpin - s) / SPIN_Norm, 2)
+            );
+
+            return {
+                name: row.pitcher_name,
+                avgVelo: rowVelo,
+                avgSpin: Math.round(rowSpin),
+                pitchCount: parseInt(row.pitch_count),
+                similarity: Math.max(0, Math.round(100 - (dist * 20))),
+                distance: dist
+            };
+        });
+
+        // Sort by distance (ASC) and take top 5
+        const similarPitchers = processed
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 5)
+            .map(({ distance, ...rest }) => rest);
 
         return NextResponse.json({
             pitcherId: id,
@@ -111,6 +150,7 @@ export async function GET(request: Request, { params }: RouteParams) {
             },
             overall: similarPitchers,
         });
+
     } catch (error) {
         console.error('Error finding similar pitchers:', error);
         return NextResponse.json({ error: 'Failed to find similar pitchers' }, { status: 500 });
