@@ -4,9 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "set NODE_ENV=development && next dev",
     "build": "next build",
+    "build:prod": "set NODE_ENV=production && next build",
     "start": "next start",
-    "lint": "eslint"
+    "start:prod": "set NODE_ENV=production && next start",
+    "lint": "eslint",
+    "db:migrate:local": "echo Run supabase-migration.sql and supabase-rpc-functions.sql in LOCAL Supabase SQL Editor",
+    "db:migrate:prod": "echo Run supabase-migration.sql and supabase-rpc-functions.sql in PRODUCTION Supabase SQL Editor"
   },
   "dependencies": {
     "@google/genai": "^1.32.0",

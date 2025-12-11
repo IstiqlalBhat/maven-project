@@ -25,7 +25,7 @@ A full-stack pitch tracking dashboard that compares your pitches against real ML
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL database (local or hosted)
+- Supabase account (free tier works)
 - Firebase Project
 - Google AI Studio API Key
 
@@ -44,43 +44,59 @@ npm install
 
 3. Set up environment variables:
 
-Create a `.env.local` file with the following variables:
+Copy the template and fill in your credentials:
+```bash
+cp .env.example .env.local
+```
 
+### Environment Configuration
+
+This project uses **two Supabase instances** for safe development:
+
+| Environment | File | Purpose |
+|-------------|------|---------|
+| **Testing** | `.env.local` | Local development - safe to experiment |
+| **Production** | `.env` or Vercel | Live application |
+
+**How it works:**
+- Next.js automatically loads `.env.local` during `npm run dev`
+- `.env.local` overrides `.env` values
+- In production (Vercel), use environment variables in the dashboard
+
+**Required environment variables:**
 ```env
-# Database (PostgreSQL)
-PGHOST=localhost
-PGPORT=5432
-PGDATABASE=pitch_tracker
-PGUSER=postgres
-PGPASSWORD=your_postgres_password
-# Or use a connection string
-# DATABASE_URL=postgresql://user:pass@host:5432/db
+# Supabase (get from supabase.com/dashboard)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-# Admin Access
-# Password for the /admin dashboard used for data ingestion
-ADMIN_PASSWORD=your_secure_admin_password
-
-# AI Capabilities (Google Gemini)
-# Get key from https://aistudio.google.com/
-GEMINI_API_KEY=your_gemini_api_key
-
-# Authentication (Firebase)
-# Get these from Project Settings -> General -> Your Apps in Firebase Console
+# Firebase Auth (get from Firebase Console)
 NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
+
+# AI & Admin
+GEMINI_API_KEY=your_gemini_api_key
+ADMIN_PASSWORD=your_admin_password
 ```
 
-4. Start the development server:
+4. Set up database schema:
+
+Run these SQL files in your Supabase SQL Editor:
+```
+docs/supabase-migration.sql      # Creates tables and RLS policies
+docs/supabase-rpc-functions.sql  # Creates analytics functions
+```
+
+5. Start the development server:
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000)
+6. Open [http://localhost:3000](http://localhost:3000)
 
 ## Data Ingestion Pipeline
 
