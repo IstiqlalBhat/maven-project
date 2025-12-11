@@ -93,9 +93,12 @@ maven-project/
 │   ├── supabase-rpc-functions.sql
 │   └── reset-database.sql
 │
-├── docs/                    # Documentation
-│   ├── DEPLOYMENT.md
-│   └── CSV.md
+├── markdown/                # Documentation
+│   ├── AIfeatures.md       # AI coaching system
+│   ├── ARCHITECTURE.md     # Project structure
+│   ├── CSV.md              # CSV upload format
+│   ├── DEPLOYMENT.md       # Deployment guide
+│   └── ...                 # Other docs
 │
 └── [config files]
 ```
@@ -260,7 +263,7 @@ Maven AI provides personalized coaching based on your actual pitch data.
 | "Who do I throw like?" | Similar MLB pitchers |
 | "What should I work on?" | Prioritized improvements |
 
-See [AIfeatures.md](AIfeatures.md) for full documentation.
+See [AIfeatures.md](markdown/AIfeatures.md) for full documentation.
 
 ---
 
@@ -318,10 +321,12 @@ npm run lint         # Run ESLint
 
 | File | Description |
 |------|-------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Project structure & patterns |
-| [AIfeatures.md](AIfeatures.md) | AI coaching system details |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment guide |
-| [docs/CSV.md](docs/CSV.md) | CSV upload format |
+| [ARCHITECTURE.md](markdown/ARCHITECTURE.md) | Project structure & patterns |
+| [AIfeatures.md](markdown/AIfeatures.md) | AI coaching system details |
+| [DEPLOYMENT.md](markdown/DEPLOYMENT.md) | Deployment guide |
+| [CSV.md](markdown/CSV.md) | CSV upload format |
+| [BASEBALL.md](markdown/BASEBALL.md) | Baseball terminology reference |
+| [DOCUMENTATION.md](markdown/DOCUMENTATION.md) | Full technical docs |
 
 ---
 
