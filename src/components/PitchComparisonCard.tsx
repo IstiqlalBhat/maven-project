@@ -29,6 +29,7 @@ function CircularGauge({
     label,
     mlbAvg,
     size = 80,
+    mobileSize = 60,
     delay = 0
 }: {
     percentile: number;
@@ -37,6 +38,7 @@ function CircularGauge({
     label: string;
     mlbAvg: number;
     size?: number;
+    mobileSize?: number;
     delay?: number;
 }) {
     const [animatedPercentile, setAnimatedPercentile] = useState(0);
@@ -45,11 +47,6 @@ function CircularGauge({
         const timer = setTimeout(() => setAnimatedPercentile(percentile), 100 + delay);
         return () => clearTimeout(timer);
     }, [percentile, delay]);
-
-    const strokeWidth = 6;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (animatedPercentile / 100) * circumference;
 
     const getGaugeColor = (p: number) => {
         if (p >= 80) return { stroke: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', text: 'text-violet-600' };
@@ -60,37 +57,56 @@ function CircularGauge({
 
     const colors = getGaugeColor(percentile);
 
+    // Responsive SVG gauge
+    const GaugeSVG = ({ gaugeSize, strokeW }: { gaugeSize: number; strokeW: number }) => {
+        const radius = (gaugeSize - strokeW) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (animatedPercentile / 100) * circumference;
+
+        return (
+            <svg className="absolute inset-0 -rotate-90" width={gaugeSize} height={gaugeSize}>
+                <circle
+                    cx={gaugeSize / 2}
+                    cy={gaugeSize / 2}
+                    r={radius}
+                    fill="none"
+                    stroke="rgba(0,0,0,0.06)"
+                    strokeWidth={strokeW}
+                />
+                <circle
+                    cx={gaugeSize / 2}
+                    cy={gaugeSize / 2}
+                    r={radius}
+                    fill="none"
+                    stroke={colors.stroke}
+                    strokeWidth={strokeW}
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    className="transition-all duration-1000 ease-out"
+                    style={{
+                        filter: `drop-shadow(0 0 4px ${colors.stroke}40)`
+                    }}
+                />
+            </svg>
+        );
+    };
+
     return (
         <div className="flex flex-col items-center">
-            <div className="relative" style={{ width: size, height: size }}>
-                {/* Background circle */}
-                <svg className="absolute inset-0 -rotate-90" width={size} height={size}>
-                    <circle
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        fill="none"
-                        stroke="rgba(0,0,0,0.06)"
-                        strokeWidth={strokeWidth}
-                    />
-                    {/* Animated progress arc */}
-                    <circle
-                        cx={size / 2}
-                        cy={size / 2}
-                        r={radius}
-                        fill="none"
-                        stroke={colors.stroke}
-                        strokeWidth={strokeWidth}
-                        strokeLinecap="round"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={offset}
-                        className="transition-all duration-1000 ease-out"
-                        style={{
-                            filter: `drop-shadow(0 0 4px ${colors.stroke}40)`
-                        }}
-                    />
-                </svg>
-                {/* Center content */}
+            {/* Mobile gauge */}
+            <div className="relative sm:hidden" style={{ width: mobileSize, height: mobileSize }}>
+                <GaugeSVG gaugeSize={mobileSize} strokeW={5} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className={`text-sm font-bold ${colors.text}`}>
+                        {animatedPercentile}
+                    </span>
+                    <span className="text-[8px] text-gray-400 -mt-0.5">%ile</span>
+                </div>
+            </div>
+            {/* Desktop gauge */}
+            <div className="relative hidden sm:block" style={{ width: size, height: size }}>
+                <GaugeSVG gaugeSize={size} strokeW={6} />
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className={`text-lg font-bold ${colors.text}`}>
                         {animatedPercentile}
@@ -99,13 +115,13 @@ function CircularGauge({
                 </div>
             </div>
             {/* Label and value below gauge */}
-            <div className="mt-2 text-center">
-                <div className="text-xs font-medium text-gray-700">{label}</div>
-                <div className="text-sm font-semibold text-gray-900">
+            <div className="mt-1.5 sm:mt-2 text-center">
+                <div className="text-[10px] sm:text-xs font-medium text-gray-700">{label}</div>
+                <div className="text-xs sm:text-sm font-semibold text-gray-900">
                     {typeof value === 'number' ? (unit === 'rpm' ? Math.round(value).toLocaleString() : value.toFixed(1)) : value}
-                    <span className="text-xs text-gray-400 ml-0.5">{unit}</span>
+                    <span className="text-[10px] sm:text-xs text-gray-400 ml-0.5">{unit}</span>
                 </div>
-                <div className="text-[10px] text-gray-400">
+                <div className="text-[9px] sm:text-[10px] text-gray-400">
                     MLB: {unit === 'rpm' ? Math.round(mlbAvg).toLocaleString() : mlbAvg.toFixed(1)}{unit}
                 </div>
             </div>
@@ -173,42 +189,42 @@ export default function PitchComparisonCard({
         <div
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-2xl border-2 transition-all duration-300
+                relative overflow-hidden rounded-xl sm:rounded-2xl border-2 transition-all duration-300
                 bg-gradient-to-br ${colors.bg} ${colors.border}
                 ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' : ''}
                 ${isSelected ? 'ring-2 ring-amber-400 ring-offset-2 shadow-lg' : 'shadow-sm'}
             `}
         >
             {/* Header */}
-            <div className="px-5 pt-4 pb-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${colors.accent}`} />
-                    <h3 className={`font-bold text-lg ${colors.text}`}>{pitchType}</h3>
+            <div className="px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${colors.accent}`} />
+                    <h3 className={`font-bold text-base sm:text-lg ${colors.text}`}>{pitchType}</h3>
                     {pitchCount && (
-                        <span className="text-xs text-gray-400 bg-white/60 px-2 py-0.5 rounded-full">
-                            {pitchCount} pitches
+                        <span className="text-[10px] sm:text-xs text-gray-400 bg-white/60 px-1.5 sm:px-2 py-0.5 rounded-full">
+                            {pitchCount}
                         </span>
                     )}
                 </div>
                 {/* Overall Grade Badge */}
                 <div className={`
-                    px-3 py-1.5 rounded-xl bg-gradient-to-r ${grade.color}
-                    text-white font-bold text-sm shadow-md
-                    flex items-center gap-1.5
+                    px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-gradient-to-r ${grade.color}
+                    text-white font-bold text-xs sm:text-sm shadow-md
+                    flex items-center gap-1 sm:gap-1.5
                 `}>
-                    <span className="text-lg leading-none">{grade.grade}</span>
-                    <span className="text-[10px] opacity-80 font-medium">{grade.description}</span>
+                    <span className="text-sm sm:text-lg leading-none">{grade.grade}</span>
+                    <span className="text-[8px] sm:text-[10px] opacity-80 font-medium hidden xs:inline">{grade.description}</span>
                 </div>
             </div>
 
-            {/* Gauges Grid */}
-            <div className="px-4 pb-5">
-                <div className="grid grid-cols-4 gap-2">
+            {/* Gauges Grid - 2x2 on mobile, 4 cols on larger screens */}
+            <div className="px-2 sm:px-4 pb-3 sm:pb-5">
+                <div className="grid grid-cols-4 gap-1 sm:gap-2">
                     <CircularGauge
                         percentile={velocity.percentile}
                         value={velocity.value}
                         unit="mph"
-                        label="Velocity"
+                        label="Velo"
                         mlbAvg={velocity.mlbAvg}
                         delay={0}
                     />
@@ -224,7 +240,7 @@ export default function PitchComparisonCard({
                         percentile={horizontalBreak.percentile}
                         value={horizontalBreak.value}
                         unit='"'
-                        label="H-Break"
+                        label="H-Brk"
                         mlbAvg={horizontalBreak.mlbAvg}
                         delay={200}
                     />
@@ -232,7 +248,7 @@ export default function PitchComparisonCard({
                         percentile={verticalBreak.percentile}
                         value={verticalBreak.value}
                         unit='"'
-                        label="V-Break"
+                        label="V-Brk"
                         mlbAvg={verticalBreak.mlbAvg}
                         delay={300}
                     />
@@ -240,7 +256,7 @@ export default function PitchComparisonCard({
             </div>
 
             {/* Decorative element */}
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-white/20 blur-2xl pointer-events-none" />
+            <div className="absolute -right-8 -bottom-8 w-24 sm:w-32 h-24 sm:h-32 rounded-full bg-white/20 blur-2xl pointer-events-none" />
         </div>
     );
 }
@@ -281,9 +297,9 @@ export function PitchComparisonGrid({
     }
 
     return (
-        <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-3 sm:space-y-4">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800">{title}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 {comparisons.map((comparison) => (
                     <PitchComparisonCard
                         key={`pitch-card-${comparison.pitchType}`}

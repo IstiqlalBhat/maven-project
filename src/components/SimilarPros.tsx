@@ -33,9 +33,9 @@ const getSimilarityColor = (similarity: number) => {
 export default function SimilarPros({ pitchers, isLoading }: SimilarProsProps) {
     if (isLoading) {
         return (
-            <div className="glass-card p-6">
-                <h3 className="font-semibold text-gray-800 mb-4">Similar Pros</h3>
-                <div className="flex items-center justify-center py-8">
+            <div className="glass-card p-4 lg:p-6">
+                <h3 className="font-semibold text-gray-800 mb-3 lg:mb-4 text-sm lg:text-base">Similar Pros</h3>
+                <div className="flex items-center justify-center py-6 lg:py-8">
                     <div className="loading-spinner" />
                 </div>
             </div>
@@ -44,9 +44,9 @@ export default function SimilarPros({ pitchers, isLoading }: SimilarProsProps) {
 
     if (pitchers.length === 0) {
         return (
-            <div className="glass-card p-6">
-                <h3 className="font-semibold text-gray-800 mb-4">Similar Pros</h3>
-                <p className="text-sm text-gray-500 text-center py-8">
+            <div className="glass-card p-4 lg:p-6">
+                <h3 className="font-semibold text-gray-800 mb-3 lg:mb-4 text-sm lg:text-base">Similar Pros</h3>
+                <p className="text-xs lg:text-sm text-gray-500 text-center py-6 lg:py-8">
                     Add pitches to find similar MLB pitchers
                 </p>
             </div>
@@ -54,13 +54,42 @@ export default function SimilarPros({ pitchers, isLoading }: SimilarProsProps) {
     }
 
     return (
-        <div className="glass-card p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">Similar Pros</h3>
-            <p className="text-xs text-gray-500 mb-4">
-                MLB pitchers with similar pitch profiles to yours
+        <div className="glass-card p-4 lg:p-6">
+            <h3 className="font-semibold text-gray-800 mb-2 lg:mb-4 text-sm lg:text-base">Similar Pros</h3>
+            <p className="text-[10px] lg:text-xs text-gray-500 mb-3 lg:mb-4">
+                MLB pitchers with similar pitch profiles
             </p>
 
-            <div className="space-y-4">
+            {/* Mobile: Horizontal scroll, Desktop: Vertical list */}
+            <div className="lg:hidden">
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+                    {pitchers.slice(0, 5).map((pitcher, index) => (
+                        <div key={index} className="flex-shrink-0 w-[140px] bg-white/50 rounded-xl p-3 border border-gray-100">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getAvatarColor(pitcher.name)} flex items-center justify-center text-white font-bold text-xs shadow-sm`}>
+                                    {pitcher.name.split(' ').map(n => n[0]).join('')}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-gray-800 text-xs truncate">{pitcher.name}</p>
+                                </div>
+                            </div>
+                            <div className="text-[10px] text-gray-500 mb-2">
+                                {pitcher.avgVelo.toFixed(1)} mph • {pitcher.avgSpin} rpm
+                            </div>
+                            <div className="similarity-bar h-1.5">
+                                <div
+                                    className={`similarity-fill bg-gradient-to-r ${getSimilarityColor(pitcher.similarity)}`}
+                                    style={{ width: `${pitcher.similarity}%` }}
+                                />
+                            </div>
+                            <p className="text-[10px] text-gray-500 text-right mt-1">{pitcher.similarity}% match</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Desktop: Vertical list */}
+            <div className="hidden lg:block space-y-4">
                 {pitchers.map((pitcher, index) => (
                     <div key={index} className="flex items-center gap-3">
                         {/* Avatar */}

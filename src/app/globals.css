@@ -826,9 +826,19 @@ body {
   display: none;
 }
 
+/* Touch manipulation for better mobile interaction */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Safe area for devices with notches */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
 /* Mobile header spacing for pages with sidebar */
 .mobile-header-spacing {
-  padding-top: 4rem; /* 64px for mobile header */
+  padding-top: 3.5rem; /* 56px for mobile header */
 }
 
 @media (min-width: 1024px) {
@@ -841,7 +851,7 @@ body {
 .main-content {
   margin-left: 0;
   padding: 1rem;
-  padding-top: 5rem; /* Account for mobile header */
+  padding-top: 4.5rem; /* Account for mobile header (56px + some spacing) */
   min-height: 100vh;
   width: 100%;
 }
@@ -849,14 +859,14 @@ body {
 @media (min-width: 640px) {
   .main-content {
     padding: 1.25rem;
-    padding-top: 5rem;
+    padding-top: 4.5rem;
   }
 }
 
 @media (min-width: 768px) {
   .main-content {
     padding: 1.5rem;
-    padding-top: 5rem;
+    padding-top: 4.5rem;
   }
 }
 
@@ -869,16 +879,12 @@ body {
   }
 
   .main-content.sidebar-collapsed {
-    margin-left: 5rem; /* 80px = w-20 */
+    margin-left: 4.5rem; /* 72px for collapsed sidebar */
   }
 }
 
 /* Small screens */
 @media (max-width: 768px) {
-  .sidebar {
-    width: var(--sidebar-collapsed);
-  }
-
   .stat-value {
     font-size: 1.25rem;
   }
@@ -889,7 +895,6 @@ body {
 
   .glass-card {
     border-radius: 16px;
-    padding: 1rem;
   }
 
   .glass-chart {
@@ -934,6 +939,9 @@ body {
 
   .modal-content {
     padding: 1rem;
+    margin: 0.5rem;
+    width: calc(100% - 1rem);
+    max-height: calc(100vh - 1rem);
   }
 }
 
@@ -968,6 +976,34 @@ body {
 
   .sidebar {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Responsive text utilities */
+@media (max-width: 480px) {
+  .text-responsive-sm {
+    font-size: 0.75rem;
+  }
+
+  .text-responsive-base {
+    font-size: 0.875rem;
+  }
+}
+
+/* Better tap targets on mobile */
+@media (max-width: 768px) {
+  button,
+  [role="button"],
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exception for inline elements */
+  span button,
+  .inline-btn {
+    min-height: auto;
+    min-width: auto;
   }
 }
 
