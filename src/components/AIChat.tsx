@@ -32,6 +32,8 @@ export default function AIChat({ pitcher }: AIChatProps) {
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const lastAnimatedMessageId = useRef<string | null>(null);
+    // Track initial mount to prevent page scroll on load
+    const isInitialMount = useRef(true);
 
     // Storage key depends on pitcher context
     // Using sessionStorage instead of localStorage for security:
@@ -86,7 +88,12 @@ export default function AIChat({ pitcher }: AIChatProps) {
         }
     }, [autoScrollEnabled]);
 
+    // Only scroll on new messages AFTER initial mount (prevents page jump on load)
     useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
