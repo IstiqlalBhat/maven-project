@@ -240,9 +240,31 @@ All user data is protected by RLS policies that enforce ownership via Firebase U
 1. Navigate to `/admin`
 2. Login with `ADMIN_PASSWORD`
 3. Select date range
-4. Click **Start Ingestion**
+4. Choose ingestion mode:
+   - **Append Mode** (default) - Adds new data without deleting existing data
+   - **Replace All** - Clears all existing MLB data before importing
+5. Click **Start Ingestion**
 
-Data is fetched from Baseball Savant in chunks to avoid rate limiting.
+### Ingestion Modes
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| **Append** | Inserts new data alongside existing | Adding data for new date ranges |
+| **Replace All** | Truncates table, then inserts | Fresh data reset |
+
+### Retry Logic
+
+The ingestion pipeline automatically handles failures:
+
+- **Automatic Retries**: Failed chunks are retried up to 3 times
+- **Exponential Backoff**: Wait time increases between retries (1s → 2s → 3s)
+- **Error Summary**: Permanently failed chunks are logged with details:
+  - Date range that failed
+  - Number of attempts made
+  - Last error message
+
+Data is fetched from Baseball Savant in 3-day chunks to avoid rate limiting.
+
 
 ---
 
