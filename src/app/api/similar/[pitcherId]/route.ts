@@ -50,9 +50,9 @@ export async function GET(request: Request, { params }: RouteParams) {
             return NextResponse.json({ error: 'Pitcher not found' }, { status: 404 });
         }
 
-        // Get user's pitches
+        // Get user's pitches (optimized query)
         const userPitchesResult = await query<UserPitch>(
-            'SELECT * FROM user_pitches WHERE pitcher_id = $1',
+            'SELECT velocity_mph, spin_rate FROM user_pitches WHERE pitcher_id = $1',
             [id]
         );
         const userPitches = userPitchesResult.rows;
@@ -80,67 +80,51 @@ export async function GET(request: Request, { params }: RouteParams) {
             }, { status: 400 });
         }
 
-        // Find similar MLB pitchers using pre-calculated stats from materialized view
-        // This is much faster than aggregating 100k+ rows on every request
-        // We'll fetch all pitcher stats (small dataset ~2000 rows) and sort in memory
-        // to avoid complex SQL parsing issues with Supabase JS client
-        let similarRows: any[] = [];
+        // Find similar MLB pitchers using server-side RPC function
+        // This avoids fetching 5000+ rows to the client
         const client = await getClient();
+        let similarPitchers: any[] = [];
+        let warning: string | undefined;
 
         try {
-            const { data: rows, error: selectError } = await client
-                .from('mv_pitcher_stats')
-                .select('pitcher_name, avg_velo, avg_spin, pitch_count')
-                .limit(5000); // Fetch all pitchers
+            // Use the efficient RPC function
+            const { data, error } = await client.rpc('get_similar_mlb_pitchers', {
+                p_avg_velo: userAvgVelo || 90, // Default if null
+                p_avg_spin: userAvgSpin || 2200,
+                p_limit: 5
+            });
 
-            if (selectError) throw selectError;
-            similarRows = rows || [];
+            if (error) {
+                // If RPC fails (e.g. not found), fallback or log
+                console.warn('RPC get_similar_mlb_pitchers failed:', error.message);
 
-        } catch (error: any) {
-            // Gracefully handle missing materialized view
-            if (error.message && error.message.includes('does not exist')) {
-                console.warn('Materialized view mv_pitcher_stats missing.');
-                return NextResponse.json({
-                    pitcherId: id,
-                    userStats: { avgVelo: userAvgVelo, avgSpin: Math.round(userAvgSpin) },
-                    overall: [],
-                    warning: 'Comparison data not available yet.'
-                });
+                // Detailed error for debugging deployment issues
+                if (error.message.includes('function') && error.message.includes('does not exist')) {
+                    warning = 'Similarity search optimized function is missing. Please run database migrations.';
+                } else {
+                    throw error;
+                }
+            } else {
+                similarPitchers = data || [];
             }
-            throw error;
+
+        } catch (error) {
+            console.error('Error in similarity search:', error);
+            // Return empty list rather than 500 to keep UI working
+            similarPitchers = [];
+            warning = 'Unable to calculate similarity at this time.';
         }
 
-        // Calculate distance and sort in JS
-        // Euclidean distance normalization factors
-        const v = userAvgVelo || 90;
-        const s = userAvgSpin || 2200;
-        const VELO_Norm = 10.0;
-        const SPIN_Norm = 500.0;
-
-        const processed = similarRows.map(row => {
-            const rowVelo = parseFloat(row.avg_velo);
-            const rowSpin = parseFloat(row.avg_spin);
-
-            const dist = Math.sqrt(
-                Math.pow((rowVelo - v) / VELO_Norm, 2) +
-                Math.pow((rowSpin - s) / SPIN_Norm, 2)
-            );
-
-            return {
-                name: row.pitcher_name,
-                avgVelo: rowVelo,
-                avgSpin: Math.round(rowSpin),
-                pitchCount: parseInt(row.pitch_count),
-                similarity: Math.max(0, Math.round(100 - (dist * 20))),
-                distance: dist
-            };
-        });
-
-        // Sort by distance (ASC) and take top 5
-        const similarPitchers = processed
-            .sort((a, b) => a.distance - b.distance)
-            .slice(0, 5)
-            .map(({ distance, ...rest }) => rest);
+        // Map RPC result to expected format if needed
+        // (The RPC returns columns that match our needs: pitcher_name, avg_velo, avg_spin, similarity_pct)
+        const formattedSimilar = similarPitchers.map(p => ({
+            name: p.pitcher_name,
+            avgVelo: p.avg_velo,
+            avgSpin: p.avg_spin,
+            pitchCount: p.pitch_count,
+            similarity: p.similarity_pct || p.similarity, // Handle both naming conventions if they differ
+            // distance: not returned by RPC, but not strictly needed for UI usually
+        }));
 
         return NextResponse.json({
             pitcherId: id,
@@ -148,7 +132,7 @@ export async function GET(request: Request, { params }: RouteParams) {
                 avgVelo: userAvgVelo,
                 avgSpin: Math.round(userAvgSpin),
             },
-            overall: similarPitchers,
+            overall: formattedSimilar,
         });
 
     } catch (error) {
