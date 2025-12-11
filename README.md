@@ -235,6 +235,9 @@ All user data is protected by RLS policies that enforce ownership via Firebase U
 
 ## Data Ingestion
 
+> [!WARNING]
+> **Vercel Free Tier**: Functions timeout after 10 seconds. For large imports (1+ month), use local development.
+
 ### Seeding MLB Data
 
 1. Navigate to `/admin`
@@ -245,26 +248,14 @@ All user data is protected by RLS policies that enforce ownership via Firebase U
    - **Replace All** - Clears all existing MLB data before importing
 5. Click **Start Ingestion**
 
-### Ingestion Modes
+### How It Works
 
-| Mode | Behavior | Use Case |
-|------|----------|----------|
-| **Append** | Inserts new data alongside existing | Adding data for new date ranges |
-| **Replace All** | Truncates table, then inserts | Fresh data reset |
+- Data is scraped from [Baseball Savant](https://baseballsavant.mlb.com) Statcast API
+- Large date ranges are split into **3-day chunks** to avoid rate limits
+- Each chunk fetches up to 25,000 pitches (API limit)
+- Failed chunks are **automatically retried** up to 3 times
 
-### Retry Logic
-
-The ingestion pipeline automatically handles failures:
-
-- **Automatic Retries**: Failed chunks are retried up to 3 times
-- **Exponential Backoff**: Wait time increases between retries (1s → 2s → 3s)
-- **Error Summary**: Permanently failed chunks are logged with details:
-  - Date range that failed
-  - Number of attempts made
-  - Last error message
-
-Data is fetched from Baseball Savant in 3-day chunks to avoid rate limiting.
-
+See [INGESTION.md](markdown/INGESTION.md) for full technical details.
 
 ---
 
@@ -388,6 +379,7 @@ npm run lint         # Run ESLint
 | [ARCHITECTURE.md](markdown/ARCHITECTURE.md) | Project structure & patterns |
 | [AIfeatures.md](markdown/AIfeatures.md) | AI coaching system details |
 | [DEPLOYMENT.md](markdown/DEPLOYMENT.md) | Deployment guide |
+| [INGESTION.md](markdown/INGESTION.md) | Data ingestion & scraper |
 | [CSV.md](markdown/CSV.md) | CSV upload format |
 | [BASEBALL.md](markdown/BASEBALL.md) | Baseball terminology reference |
 | [DOCUMENTATION.md](markdown/DOCUMENTATION.md) | Full technical docs |
