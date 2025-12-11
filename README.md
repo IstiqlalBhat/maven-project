@@ -7,6 +7,106 @@ A full-stack baseball pitch tracking platform that compares your pitches against
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green)
 ![Firebase](https://img.shields.io/badge/Firebase-Auth-orange)
 
+> **Note:** All documentation files in the `markdown/` folder were generated with AI assistance 😊
+
+---
+
+## Quick Start Guide
+
+### Prerequisites
+
+- **Node.js 18+** - [Download here](https://nodejs.org/)
+- **Supabase account** - [Sign up free](https://supabase.com)
+- **Firebase project** - [Create one](https://firebase.google.com)
+- **Google AI Studio API key** - [Get API key](https://aistudio.google.com)
+
+### Step 1: Clone & Install
+
+```bash
+git clone <repo-url>
+cd maven-project
+npm install
+```
+
+### Step 2: Configure Environment
+
+```bash
+cp .env.example .env.local
+```
+
+Edit `.env.local` with your credentials:
+
+```env
+# Supabase (from Project Settings > API)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Firebase (from Project Settings > General)
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# AI & Admin
+GEMINI_API_KEY=your_gemini_api_key
+ADMIN_PASSWORD=your_admin_password
+```
+
+### Step 3: Set Up Database
+
+Run these SQL scripts in your **Supabase SQL Editor** (in order):
+
+1. `sql/supabase-migration.sql` - Creates tables & RLS policies
+2. `sql/supabase-rpc-functions.sql` - Creates analytics functions
+
+### Step 4: Start Development Server
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+### Step 5: Load MLB Data (Required)
+
+**This step is required before you can compare your pitches to MLB data.**
+
+1. Navigate to **Admin Panel** (Settings icon in sidebar, or `/admin`)
+2. Enter your admin password
+3. Select a date range for MLB data:
+   - **Recommended**: Start with 1-2 weeks for quick testing
+   - **Full season**: ~690,000 pitches, takes approximately 15 minutes
+4. Click **Start Ingestion**
+5. Wait for completion - progress is shown in real-time
+
+The data is scraped from Baseball Savant and stored in your Supabase database.
+
+### Step 6: Create a Pitcher & Upload Your Data
+
+1. Click **Create Pitcher** and fill in your profile
+2. **Upload pitches** using one of these methods:
+   - **Manual entry**: Add pitches one at a time
+   - **CSV upload**: Bulk upload from file
+
+**Using the Sample CSV:**
+```
+dummy data(CSV)/pitch_dummy.csv
+```
+This contains 49 sample pitches across 7 pitch types - perfect for testing.
+
+**Using Your Own Data:**
+See [CSV.md](markdown/CSV.md) for the required format and column mappings.
+
+### Step 7: Explore Your Data
+
+- **Dashboard**: View your arsenal breakdown and trends
+- **Compare**: See your percentile rankings against MLB
+- **Similar Pros**: Find MLB pitchers with similar profiles
+- **AI Coach**: Chat with Maven for personalized advice
+
 ---
 
 ## Features
@@ -105,80 +205,6 @@ maven-project/
 │   └── pitch_dummy.csv     # 49 sample pitches
 │
 └── [config files]
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- [Supabase](https://supabase.com) account (free tier works)
-- [Firebase](https://firebase.google.com) project
-- [Google AI Studio](https://aistudio.google.com) API key
-
-### Installation
-
-1. **Clone & Install**
-   ```bash
-   git clone <repo-url>
-   cd maven-project
-   npm install
-   ```
-
-2. **Configure Environment**
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your credentials
-   ```
-
-3. **Set Up Database**
-   
-   Run these in your Supabase SQL Editor:
-   - `sql/supabase-migration.sql` - Tables & RLS policies
-   - `sql/supabase-rpc-functions.sql` - Analytics functions
-
-4. **Start Development**
-   ```bash
-   npm run dev
-   ```
-
-5. **Open** [http://localhost:3000](http://localhost:3000)
-
----
-
-## Environment Configuration
-
-### How It Works
-
-| File | Purpose | Git Status |
-|------|---------|------------|
-| `.env.example` | Template (no secrets) | ✅ Committed |
-| `.env.local` | Local development | ❌ Ignored |
-| `.env` | Production | ❌ Ignored |
-
-Next.js automatically loads `.env.local` during development, overriding `.env`.
-
-### Required Variables
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Firebase
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-
-# AI & Admin
-GEMINI_API_KEY=your_gemini_api_key
-ADMIN_PASSWORD=your_admin_password
 ```
 
 ---
@@ -377,6 +403,8 @@ npm run lint         # Run ESLint
 
 ## Documentation
 
+> All markdown documentation was generated with AI assistance 😊
+
 | File | Description |
 |------|-------------|
 | [ARCHITECTURE.md](markdown/ARCHITECTURE.md) | Project structure & patterns |
@@ -385,6 +413,7 @@ npm run lint         # Run ESLint
 | [INGESTION.md](markdown/INGESTION.md) | Data ingestion & scraper |
 | [CSV.md](markdown/CSV.md) | CSV upload format |
 | [BASEBALL.md](markdown/BASEBALL.md) | Baseball terminology reference |
+| [MOBILE_OPTIMISATION.md](markdown/MOBILE_OPTIMISATION.md) | Mobile UI optimization details |
 | [DOCUMENTATION.md](markdown/DOCUMENTATION.md) | Full technical docs |
 
 ---
@@ -445,6 +474,7 @@ Planned future improvements:
 - [ ] **Visual Upgrade**: Remove generic AI imagery; replace with high-quality, custom visuals.
 - [ ] **Coach Features**: Incorporate more features for advanced coaching tools.
 - [ ] **Advanced Insights**: Develop deeper, more complex SQL queries for AI analysis.
+- [x] **Mobile Optimization**: Complete mobile-responsive design for on-field use. See [MOBILE_OPTIMISATION.md](markdown/MOBILE_OPTIMISATION.md).
 
 ---
 
