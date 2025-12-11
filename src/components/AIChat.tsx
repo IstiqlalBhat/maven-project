@@ -7,6 +7,7 @@ interface ChatMessage {
     role: 'user' | 'model';
     parts: { text: string }[];
     timestamp?: Date;
+    id?: string;
 }
 
 interface PitcherContext {
@@ -24,8 +25,11 @@ export default function AIChat({ pitcher }: AIChatProps) {
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [activeAiMessageId, setActiveAiMessageId] = useState<string | null>(null);
+    const [renderedAiText, setRenderedAiText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const lastAnimatedMessageId = useRef<string | null>(null);
 
     // Storage key depends on pitcher context
     // Using sessionStorage instead of localStorage for security:
@@ -33,6 +37,17 @@ export default function AIChat({ pitcher }: AIChatProps) {
     // - Not persistent across tabs/windows
     // - Reduces risk of sensitive conversation data exposure
     const storageKey = `maven_chat_${pitcher?.id || 'general'}`;
+
+    const createMessageId = useCallback(() => {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
+        }
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }, []);
+
+    const getMessageText = useCallback((message: ChatMessage) => {
+        return message.parts.map(part => part.text).join('\n\n');
+    }, []);
 
     // Load messages from session storage on mount
     useEffect(() => {
@@ -43,6 +58,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
                 // Convert string timestamps back to Date objects
                 const rehydrated = parsed.map((m: any) => ({
                     ...m,
+                    id: m.id || createMessageId(),
                     timestamp: m.timestamp ? new Date(m.timestamp) : undefined
                 }));
                 setMessages(rehydrated);
@@ -50,7 +66,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
                 console.error('Failed to parse chat history', e);
             }
         }
-    }, [storageKey]);
+    }, [createMessageId, storageKey]);
 
     // Save messages to session storage whenever they change
     useEffect(() => {
@@ -68,10 +84,57 @@ export default function AIChat({ pitcher }: AIChatProps) {
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
+    // Keep the view pinned while the AI "renders" text
+    useEffect(() => {
+        if (!activeAiMessageId) return;
+        scrollToBottom();
+    }, [activeAiMessageId, renderedAiText, scrollToBottom]);
+
     // Focus input on mount
     useEffect(() => {
         inputRef.current?.focus();
     }, []);
+
+    // Animate the latest AI response to feel like text streaming
+    useEffect(() => {
+        const lastMessage = messages[messages.length - 1];
+        if (!lastMessage || lastMessage.role !== 'model') {
+            setActiveAiMessageId(null);
+            setRenderedAiText('');
+            return;
+        }
+
+        const messageId = lastMessage.id || (lastMessage.timestamp ? new Date(lastMessage.timestamp).getTime().toString() : createMessageId());
+
+        if (lastAnimatedMessageId.current === messageId) {
+            return;
+        }
+
+        lastAnimatedMessageId.current = messageId;
+        setActiveAiMessageId(messageId);
+
+        const fullText = getMessageText(lastMessage);
+        if (!fullText) {
+            setRenderedAiText('');
+            return;
+        }
+
+        let index = 0;
+        setRenderedAiText('');
+
+        const interval = window.setInterval(() => {
+            index = Math.min(index + 2, fullText.length);
+            setRenderedAiText(fullText.slice(0, index));
+
+            if (index >= fullText.length) {
+                window.clearInterval(interval);
+            }
+        }, 14);
+
+        return () => {
+            window.clearInterval(interval);
+        };
+    }, [createMessageId, getMessageText, messages]);
 
     const sendMessage = async () => {
         if (!inputValue.trim() || isLoading) return;
@@ -79,7 +142,8 @@ export default function AIChat({ pitcher }: AIChatProps) {
         const userMessage: ChatMessage = {
             role: 'user',
             parts: [{ text: inputValue.trim() }],
-            timestamp: new Date()
+            timestamp: new Date(),
+            id: createMessageId()
         };
 
         const newMessages = [...messages, userMessage];
@@ -87,6 +151,8 @@ export default function AIChat({ pitcher }: AIChatProps) {
         setInputValue('');
         setIsLoading(true);
         setError(null);
+        setActiveAiMessageId(null);
+        setRenderedAiText('');
 
         try {
             const { authPost } = await import('@/lib/auth-fetch');
@@ -110,7 +176,8 @@ export default function AIChat({ pitcher }: AIChatProps) {
 
             const aiMessage: ChatMessage = {
                 ...data.message,
-                timestamp: new Date()
+                timestamp: new Date(),
+                id: data.message?.id || createMessageId()
             };
 
             setMessages(prev => [...prev, aiMessage]);
@@ -131,13 +198,19 @@ export default function AIChat({ pitcher }: AIChatProps) {
     const clearChat = () => {
         setMessages([]);
         setError(null);
+        setActiveAiMessageId(null);
+        setRenderedAiText('');
         sessionStorage.removeItem(storageKey);
     };
 
     return (
-        <div className="glass-card p-0 flex flex-col h-[500px]">
+        <div className="glass-card p-0 flex flex-col h-[520px] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/60 to-white/30 pointer-events-none" />
+            <div className="absolute -right-14 -top-14 w-48 h-48 bg-amber-200/40 blur-3xl rounded-full pointer-events-none" />
+            <div className="absolute -left-10 bottom-0 w-40 h-40 bg-amber-100/35 blur-3xl rounded-full pointer-events-none" />
+
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/20">
+            <div className="relative flex items-center justify-between p-4 border-b border-white/30 bg-white/50 backdrop-blur-md">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl shadow-lg">
                         <MessageCircle className="text-white" size={20} />
@@ -153,6 +226,15 @@ export default function AIChat({ pitcher }: AIChatProps) {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <div
+                        className={`flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold border ${isLoading
+                            ? 'bg-amber-50 border-amber-200 text-amber-700'
+                            : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                            }`}
+                    >
+                        <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                        {isLoading ? 'Rendering' : 'Live'}
+                    </div>
                     {messages.length > 0 && (
                         <button
                             onClick={clearChat}
@@ -166,10 +248,10 @@ export default function AIChat({ pitcher }: AIChatProps) {
             </div>
 
             {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 chat-messages-container">
+            <div className="relative flex-1 overflow-y-auto p-4 space-y-4 chat-messages-container" role="log" aria-live="polite">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                        <div className="p-4 bg-amber-50 rounded-2xl mb-4">
+                        <div className="p-4 bg-amber-50 rounded-2xl mb-4 shadow-inner">
                             <Sparkles className="text-amber-500" size={32} />
                         </div>
                         <h4 className="font-semibold text-gray-700 mb-2">Ask Maven AI</h4>
@@ -181,7 +263,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
                                 <button
                                     key={suggestion}
                                     onClick={() => setInputValue(suggestion)}
-                                    className="px-3 py-1.5 text-xs bg-white/70 hover:bg-white rounded-full border border-amber-200 text-amber-700 transition-colors"
+                                    className="px-3 py-1.5 text-xs bg-white/80 hover:bg-white rounded-full border border-amber-200 text-amber-700 transition-colors"
                                 >
                                     {suggestion}
                                 </button>
@@ -189,31 +271,52 @@ export default function AIChat({ pitcher }: AIChatProps) {
                         </div>
                     </div>
                 ) : (
-                    messages.map((message, index) => (
-                        <div
-                            key={index}
-                            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
+                    messages.map((message, index) => {
+                        const messageId = message.id || (message.timestamp ? new Date(message.timestamp).getTime().toString() : `${index}`);
+                        const isActiveAi = message.role === 'model' && messageId === activeAiMessageId;
+                        const textToRender = isActiveAi ? (renderedAiText || getMessageText(message)) : getMessageText(message);
+
+                        return (
                             <div
-                                className={`max-w-[85%] rounded-2xl px-4 py-3 ${message.role === 'user'
-                                    ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white chat-bubble-user'
-                                    : 'bg-white/80 backdrop-blur-sm border border-white/50 text-gray-700 chat-bubble-ai'
-                                    }`}
+                                key={messageId}
+                                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
-                                <p className="text-sm whitespace-pre-wrap">{message.parts[0].text}</p>
+                                <div
+                                    className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm border ${message.role === 'user'
+                                        ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white chat-bubble-user border-amber-200/60'
+                                        : 'bg-white/85 backdrop-blur-sm border-white/60 text-gray-700 chat-bubble-ai'
+                                        }`}
+                                >
+                                    <p className={`text-sm whitespace-pre-wrap leading-relaxed ${isActiveAi ? 'streaming-text' : ''}`}>
+                                        {textToRender}
+                                    </p>
+                                    {message.role === 'model' && !isActiveAi && (
+                                        <span className="mt-2 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-amber-600 font-semibold">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                            Rendered
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
 
                 {/* Loading indicator */}
                 {isLoading && (
-                    <div className="flex justify-start">
-                        <div className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl px-4 py-3 flex items-center gap-2">
-                            <Loader2 className="animate-spin text-amber-500" size={16} />
-                            <span className="text-sm text-gray-500">
-                                Thinking...
-                            </span>
+                    <div className="flex justify-start animate-in">
+                        <div className="bg-white/85 backdrop-blur-sm border border-amber-100 rounded-2xl px-4 py-3 flex items-start gap-3 shadow-sm">
+                            <div className="typing-indicator mt-0.5">
+                                <span className="typing-dot" />
+                                <span className="typing-dot" />
+                                <span className="typing-dot" />
+                            </div>
+                            <div className="ai-loader w-48">
+                                <div className="ai-loader-line" />
+                                <div className="ai-loader-line sm" />
+                                <div className="ai-loader-line xs" />
+                                <p className="text-[11px] text-gray-500 font-semibold uppercase tracking-[0.08em] mt-1">rendering text</p>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -231,8 +334,8 @@ export default function AIChat({ pitcher }: AIChatProps) {
             </div>
 
             {/* Chat Input */}
-            <div className="p-4 border-t border-white/20 bg-white/30">
-                <div className="flex items-center gap-2">
+            <div className="relative p-4 border-t border-white/30 bg-white/50 backdrop-blur-md">
+                <div className="flex items-center gap-2 rounded-2xl bg-white/80 border border-white/60 shadow-inner px-3 py-2">
                     <input
                         ref={inputRef}
                         type="text"
@@ -240,7 +343,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={handleKeyPress}
                         placeholder="Ask about your pitching..."
-                        className="flex-1 bg-white/80 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                        className="flex-1 bg-transparent rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-0"
                         disabled={isLoading}
                     />
                     <button
