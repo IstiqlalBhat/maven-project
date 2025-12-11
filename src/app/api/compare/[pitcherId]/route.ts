@@ -127,16 +127,16 @@ export async function GET(request: Request, { params }: RouteParams) {
             };
 
             // Parse MLB stats
-            const mlbAvgVelo = parseFloat(mlbStats.avg_velo) || 93;
-            const mlbMaxVelo = parseFloat(mlbStats.max_velo) || 102;
-            const mlbMinVelo = parseFloat(mlbStats.min_velo) || 85;
-            const mlbAvgSpin = parseFloat(mlbStats.avg_spin) || 2300;
-            const mlbMaxSpin = parseFloat(mlbStats.max_spin) || 2800;
-            const mlbMinSpin = parseFloat(mlbStats.min_spin) || 1800;
-            const mlbAvgHBreak = parseFloat(mlbStats.avg_h_break) || 8;
-            const mlbAvgVBreak = parseFloat(mlbStats.avg_v_break) || 14;
-            const stddevVelo = parseFloat(mlbStats.stddev_velo) || 3;
-            const stddevSpin = parseFloat(mlbStats.stddev_spin) || 200;
+            const mlbAvgVelo = parseFloat(mlbStats.avg_velo as string) || 93;
+            const mlbMaxVelo = parseFloat(mlbStats.max_velo as string) || 102;
+            const mlbMinVelo = parseFloat(mlbStats.min_velo as string) || 85;
+            const mlbAvgSpin = parseFloat(mlbStats.avg_spin as string) || 2300;
+            const mlbMaxSpin = parseFloat(mlbStats.max_spin as string) || 2800;
+            const mlbMinSpin = parseFloat(mlbStats.min_spin as string) || 1800;
+            const mlbAvgHBreak = parseFloat(mlbStats.avg_h_break as string) || 8;
+            const mlbAvgVBreak = parseFloat(mlbStats.avg_v_break as string) || 14;
+            const stddevVelo = parseFloat(mlbStats.stddev_velo as string) || 3;
+            const stddevSpin = parseFloat(mlbStats.stddev_spin as string) || 200;
 
             // Calculate percentiles using z-score approximation
             // For velocity: higher is better
@@ -167,7 +167,7 @@ export async function GET(request: Request, { params }: RouteParams) {
                     maxSpin: Math.round(mlbMaxSpin),
                     avgHBreak: Math.round(mlbAvgHBreak * 10) / 10,
                     avgVBreak: Math.round(mlbAvgVBreak * 10) / 10,
-                    sampleSize: parseInt(mlbStats.sample_size) || 0,
+                    sampleSize: parseInt(mlbStats.sample_size as string) || 0,
                 },
                 percentiles: {
                     velocity: veloPercentile,

@@ -111,7 +111,8 @@ async function handleSelect<T>(sql: string, params?: unknown[]): Promise<QueryRe
 
     const table = tableMatch[1];
     // Use service client to bypass RLS since we validate auth in middleware
-    let queryBuilder = getServiceClient().from(table).select('*');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let queryBuilder: any = getServiceClient().from(table).select('*');
 
     // Parse WHERE clause and apply filters
     const whereMatch = sql.match(/where\s+([\s\S]+?)(?:order|limit|$)/i);
@@ -395,11 +396,12 @@ async function handleRawQuery<T>(sql: string, params?: unknown[]): Promise<Query
 }
 
 // Apply WHERE conditions to Supabase query
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applyWhereConditions(
-    query: ReturnType<typeof supabase.from>,
+    query: any,
     conditions: string,
     params: unknown[]
-): ReturnType<typeof supabase.from> {
+): any {
     // Parse simple conditions like "column = $1" or "column = $1 AND column2 = $2"
     const parts = conditions.split(/\s+and\s+/i);
 
