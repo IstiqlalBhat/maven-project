@@ -88,9 +88,12 @@ maven-project/
 │       ├── constants/      # App constants
 │       └── utils/          # Utility functions
 │
-├── docs/                    # Documentation & SQL
+├── sql/                     # Database SQL scripts
 │   ├── supabase-migration.sql
 │   ├── supabase-rpc-functions.sql
+│   └── reset-database.sql
+│
+├── docs/                    # Documentation
 │   ├── DEPLOYMENT.md
 │   └── CSV.md
 │
@@ -126,8 +129,8 @@ maven-project/
 3. **Set Up Database**
    
    Run these in your Supabase SQL Editor:
-   - `docs/supabase-migration.sql` - Tables & RLS policies
-   - `docs/supabase-rpc-functions.sql` - Analytics functions
+   - `sql/supabase-migration.sql` - Tables & RLS policies
+   - `sql/supabase-rpc-functions.sql` - Analytics functions
 
 4. **Start Development**
    ```bash

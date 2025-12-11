@@ -24,8 +24,8 @@ Your `.env.local` is already set up with testing Supabase credentials.
 
 ### 2. Setup Database Schema
 Run these SQL files in your **testing** Supabase SQL Editor:
-1. `docs/supabase-migration.sql` - Creates tables and base schema
-2. `docs/supabase-rpc-functions.sql` - Creates RPC functions for analytics
+1. `sql/supabase-migration.sql` - Creates tables and base schema
+2. `sql/supabase-rpc-functions.sql` - Creates RPC functions for analytics
 
 ### 3. Run Locally
 ```powershell
@@ -45,8 +45,8 @@ SELECT get_mlb_pitch_percentiles(ARRAY['FF', 'CU']);
 
 ### 1. Setup Production Database
 Run the same SQL files in your **production** Supabase SQL Editor:
-1. `docs/supabase-migration.sql`
-2. `docs/supabase-rpc-functions.sql`
+1. `sql/supabase-migration.sql`
+2. `sql/supabase-rpc-functions.sql`
 
 ### 2. Configure Vercel Environment Variables
 In Vercel Dashboard → Settings → Environment Variables, add:
