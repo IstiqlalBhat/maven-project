@@ -235,27 +235,7 @@ All user data is protected by RLS policies that enforce ownership via Firebase U
 
 ## Data Ingestion
 
-> [!WARNING]
-> **Vercel Free Tier**: Functions timeout after 10 seconds. For large imports (1+ month), use local development.
-
-### Seeding MLB Data
-
-1. Navigate to `/admin`
-2. Login with `ADMIN_PASSWORD`
-3. Select date range
-4. Choose ingestion mode:
-   - **Append Mode** (default) - Adds new data without deleting existing data
-   - **Replace All** - Clears all existing MLB data before importing
-5. Click **Start Ingestion**
-
-### How It Works
-
-- Data is scraped from [Baseball Savant](https://baseballsavant.mlb.com) Statcast API
-- Large date ranges are split into **3-day chunks** to avoid rate limits
-- Each chunk fetches up to 25,000 pitches (API limit)
-- Failed chunks are **automatically retried** up to 3 times
-
-See [INGESTION.md](markdown/INGESTION.md) for full technical details.
+See [INGESTION.md](markdown/INGESTION.md) for full documentation on the MLB data scraper, chunking strategy, and retry logic.
 
 ---
 
@@ -383,6 +363,55 @@ npm run lint         # Run ESLint
 | [CSV.md](markdown/CSV.md) | CSV upload format |
 | [BASEBALL.md](markdown/BASEBALL.md) | Baseball terminology reference |
 | [DOCUMENTATION.md](markdown/DOCUMENTATION.md) | Full technical docs |
+
+---
+
+## Development Process
+
+This project was built using a hybrid approach combining manual development with AI-assisted coding.
+
+### Tools Used
+
+| Tool | Purpose |
+|------|---------|
+| **Cursor** | AI-powered IDE for code generation |
+| **Claude Code** | AI pair programming for complex features |
+| **Manual Coding** | Core backend logic and architecture |
+
+### Human-Made Components
+
+These were written manually with domain-specific logic:
+
+| Component | Description |
+|-----------|-------------|
+| `src/lib/fetch-mlb-data.ts` | Data ingestion pipeline, CSV parsing, chunking |
+| `src/app/api/seed/route.ts` | Seed API with append/force modes |
+| `src/app/api/pitchers/` | Pitcher CRUD routes |
+| `src/app/api/pitches/` | Pitch tracking routes |
+| `src/app/api/compare/` | MLB comparison logic |
+| `src/app/api/similar/` | Similar pitcher matching |
+| `sql/*.sql` | Database schema and RPC functions |
+
+### AI-Assisted Components
+
+These were generated/refined with AI assistance (polished code with comprehensive comments):
+
+| Component | Description |
+|-----------|-------------|
+| `src/components/AIChat.tsx` | Chat interface with streaming |
+| `src/components/StatsCharts.tsx` | Chart.js visualizations |
+| `src/components/ArsenalOverview.tsx` | Arsenal breakdown cards |
+| `src/components/PitchForm.tsx` | Pitch entry form |
+| `src/components/Admin/*.tsx` | Admin panel UI |
+| `src/components/Sidebar.tsx` | Navigation sidebar |
+| `src/context/*.tsx` | React context providers |
+| `src/styles/*.css` | Glassmorphism styling |
+
+### Why This Approach?
+
+- **Backend**: Required understanding of Baseball Savant API, rate limiting, data structures
+- **Frontend**: AI excels at generating React components, CSS, and boilerplate
+- **Result**: Fast development while maintaining control over critical logic
 
 ---
 
