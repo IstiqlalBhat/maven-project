@@ -1,76 +1,164 @@
-# My Arsenal vs The Show
+# My Arsenal vs The Show ⚾
 
-A full-stack pitch tracking dashboard that compares your pitches against real MLB Statcast data with AI-powered development recommendations.
+A full-stack baseball pitch tracking platform that compares your pitches against real MLB Statcast data, powered by AI coaching.
+
+![Next.js](https://img.shields.io/badge/Next.js-14-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green)
+![Firebase](https://img.shields.io/badge/Firebase-Auth-orange)
+
+---
 
 ## Features
 
-- 📊 **Track Your Arsenal** - Record velocity, spin rate, and movement for every pitch
-- 🎯 **MLB Benchmarks** - See your percentile rankings vs real Statcast data from Baseball Savant
-- 🤖 **Maven AI Coach** - Chat with an elite pitching coach powered by Google Gemini that knows your exact metrics
-- 👥 **Similar Pros** - Find MLB pitchers with similar profiles to yours
+### 📊 Pitch Tracking Dashboard
+- Log velocity, spin rate, and movement for every pitch
+- Visual arsenal breakdown with charts and 3D visualization
+- Track trends over time with historical data
 
-[View full AI capabilities documentation](AIfeatures.md)
+### 🎯 MLB Benchmarking
+- Percentile rankings against real MLB Statcast data
+- Z-score calculations for velocity and spin rate
+- Per-pitch-type comparisons (FF, CU, SL, CH, etc.)
+
+### 🤖 Maven AI Coach
+- Chat with an elite pitching coach powered by Google Gemini
+- Analyzes YOUR data: arsenal breakdown, consistency, trends
+- Level-specific advice (High School, College, Pro)
+- Sequencing strategy and pitch design recommendations
+
+### 👥 Similar Pros
+- Find MLB pitchers with similar velocity/spin profiles
+- Euclidean distance matching against materialized pitcher stats
+- Role models for development
+
+### 📤 Batch Upload
+- CSV upload for bulk pitch data
+- Column mapping UI for flexible imports
+- Validation and error handling
+
+---
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 with App Router
-- **Language**: TypeScript
-- **Database**: PostgreSQL
-- **Styling**: Tailwind CSS with glassmorphism design
-- **Charts**: Chart.js
-- **Data Source**: MLB Statcast via Baseball Savant
+| Layer | Technology |
+|-------|------------|
+| **Framework** | Next.js 14 (App Router) |
+| **Language** | TypeScript |
+| **Database** | Supabase (PostgreSQL + RLS) |
+| **Auth** | Firebase Authentication |
+| **AI** | Google Gemini Pro |
+| **Charts** | Chart.js, Recharts |
+| **3D** | Three.js, React Three Fiber |
+| **Styling** | Tailwind CSS (Glassmorphism) |
+
+---
+
+## Project Structure
+
+```
+maven-project/
+├── src/
+│   ├── app/                 # Next.js App Router
+│   │   ├── api/            # Backend API routes
+│   │   │   ├── auth/       # Authentication
+│   │   │   ├── chat/       # AI chat (Gemini)
+│   │   │   ├── compare/    # MLB benchmarking
+│   │   │   ├── pitchers/   # Pitcher CRUD
+│   │   │   ├── pitches/    # Pitch tracking
+│   │   │   ├── seed/       # Data ingestion
+│   │   │   └── similar/    # Similar pitcher matching
+│   │   ├── dashboard/      # User dashboard
+│   │   ├── admin/          # Admin panel
+│   │   └── ...             # Other pages
+│   │
+│   ├── components/          # React components
+│   │   ├── AIChat.tsx      # AI coaching chat
+│   │   ├── ArsenalOverview.tsx
+│   │   ├── PitchForm.tsx   # Pitch entry form
+│   │   ├── StatsCharts.tsx # Visualizations
+│   │   └── ...
+│   │
+│   ├── core/                # Backend core
+│   │   ├── database/       # Supabase client
+│   │   └── api/            # Auth, rate limiting, validation
+│   │
+│   └── shared/              # Shared code
+│       ├── types/          # TypeScript interfaces
+│       ├── constants/      # App constants
+│       └── utils/          # Utility functions
+│
+├── docs/                    # Documentation & SQL
+│   ├── supabase-migration.sql
+│   ├── supabase-rpc-functions.sql
+│   ├── DEPLOYMENT.md
+│   └── CSV.md
+│
+└── [config files]
+```
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
-- Supabase account (free tier works)
-- Firebase Project
-- Google AI Studio API Key
+- [Supabase](https://supabase.com) account (free tier works)
+- [Firebase](https://firebase.google.com) project
+- [Google AI Studio](https://aistudio.google.com) API key
 
 ### Installation
 
-1. Clone the repository:
-```bash
-git clone <repo-url>
-cd maven-project
-```
+1. **Clone & Install**
+   ```bash
+   git clone <repo-url>
+   cd maven-project
+   npm install
+   ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+2. **Configure Environment**
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local with your credentials
+   ```
 
-3. Set up environment variables:
+3. **Set Up Database**
+   
+   Run these in your Supabase SQL Editor:
+   - `docs/supabase-migration.sql` - Tables & RLS policies
+   - `docs/supabase-rpc-functions.sql` - Analytics functions
 
-Copy the template and fill in your credentials:
-```bash
-cp .env.example .env.local
-```
+4. **Start Development**
+   ```bash
+   npm run dev
+   ```
 
-### Environment Configuration
+5. **Open** [http://localhost:3000](http://localhost:3000)
 
-This project uses **two Supabase instances** for safe development:
+---
 
-| Environment | File | Purpose |
-|-------------|------|---------|
-| **Testing** | `.env.local` | Local development - safe to experiment |
-| **Production** | `.env` or Vercel | Live application |
+## Environment Configuration
 
-**How it works:**
-- Next.js automatically loads `.env.local` during `npm run dev`
-- `.env.local` overrides `.env` values
-- In production (Vercel), use environment variables in the dashboard
+### How It Works
 
-**Required environment variables:**
+| File | Purpose | Git Status |
+|------|---------|------------|
+| `.env.example` | Template (no secrets) | ✅ Committed |
+| `.env.local` | Local development | ❌ Ignored |
+| `.env` | Production | ❌ Ignored |
+
+Next.js automatically loads `.env.local` during development, overriding `.env`.
+
+### Required Variables
+
 ```env
-# Supabase (get from supabase.com/dashboard)
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-# Firebase Auth (get from Firebase Console)
+# Firebase
 NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
@@ -83,111 +171,156 @@ GEMINI_API_KEY=your_gemini_api_key
 ADMIN_PASSWORD=your_admin_password
 ```
 
-4. Set up database schema:
+---
 
-Run these SQL files in your Supabase SQL Editor:
-```
-docs/supabase-migration.sql      # Creates tables and RLS policies
-docs/supabase-rpc-functions.sql  # Creates analytics functions
-```
+## Database Schema
 
-5. Start the development server:
-```bash
-npm run dev
-```
+### Tables
 
-6. Open [http://localhost:3000](http://localhost:3000)
+| Table | Purpose |
+|-------|---------|
+| `user_pitchers` | Pitcher profiles (linked to Firebase UID) |
+| `user_pitches` | Individual pitch data |
+| `mlb_pitches` | MLB Statcast reference data |
+| `mv_pitcher_stats` | Materialized view for analytics |
 
-## Data Ingestion Pipeline
+### Row Level Security
 
-To power the analytics and AI comparisons, you need to seed the database with MLB Statcast data.
+All user data is protected by RLS policies that enforce ownership via Firebase UID.
 
-### 1. Admin Access
-Navigate to `/admin` and log in using the `ADMIN_PASSWORD` defined in your environment variables.
-
-> **Developer Note**: The admin UI is built with components in `src/components/Admin/` (DataIngestion, DataStats, etc.).
-
-### 2. Ingesting Data
-The Admin Dashboard provides a **Data Ingestion** panel:
-1. Select a date range (e.g., "Last 30 Days" or specific dates).
-2. Click **Preview** to estimate the volume of data.
-3. Click **Start Ingestion** to fetch data from Baseball Savant.
-   - The system will fetch data in chunks to prevent rate limiting.
-   - This populates `mlb_pitches` and refreshes the `mv_pitcher_stats` materialized view.
-   - *Note: Ingesting a full season (≈700k pitches) may take 10-15 minutes.*
-
-### 3. Verify Data
-Once ingestion is complete, use the **Data Details** panel in the Admin Dashboard to verify row counts and data integrity.
-
-## Authentication & AI Setup
-
-### Firebase Auth
-This project uses Firebase Authentication for user management.
-1. Create a project in [Firebase Console](https://console.firebase.google.com/).
-2. Enable **Authentication** and set up the **Email/Password** provider.
-3. Copy the configuration keys to your `.env.local` file.
-
-### Gemini AI
-The system uses Google's Gemini Pro model for the AI coaching personality.
-1. Get an API key from [Google AI Studio](https://aistudio.google.com/).
-2. Add it as `GEMINI_API_KEY` in `.env.local`.
-3. The AI uses rich context (pitching metrics, trends, comparisons) to generate response. See `AIfeatures.md` for details.
-
-### Alternative: Ingestion via API
-For automated or headless ingestion, you can use the API directly:
-
-```bash
-# PowerShell
-Invoke-RestMethod -Uri "http://localhost:3000/api/seed" -Method POST -ContentType "application/json" -Body '{"startDate": "2024-09-01", "endDate": "2024-09-30", "season": 2024}'
-
-# cURL
-curl -X POST http://localhost:3000/api/seed -H "Content-Type: application/json" -d '{"startDate": "2024-09-01", "endDate": "2024-09-30", "season": 2024}'
-```
+---
 
 ## API Endpoints
 
 ### Pitchers
-- `GET /api/pitchers` - List all pitcher profiles
-- `POST /api/pitchers` - Create a new pitcher profile
-- `GET /api/pitchers/[id]` - Get a specific pitcher
-- `PUT /api/pitchers/[id]` - Update a pitcher
-- `DELETE /api/pitchers/[id]` - Delete a pitcher
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/pitchers` | List user's pitchers |
+| POST | `/api/pitchers` | Create pitcher profile |
+| GET | `/api/pitchers/[id]` | Get specific pitcher |
+| PUT | `/api/pitchers/[id]` | Update pitcher |
+| DELETE | `/api/pitchers/[id]` | Delete pitcher |
 
 ### Pitches
-- `GET /api/pitches?pitcher_id=X` - List pitches for a pitcher
-- `POST /api/pitches` - Add a new pitch
-- `GET /api/pitches/[id]` - Get a specific pitch
-- `PUT /api/pitches/[id]` - Update a pitch
-- `DELETE /api/pitches/[id]` - Delete a pitch
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/pitches?pitcher_id=X` | List pitches |
+| POST | `/api/pitches` | Add single pitch |
+| POST | `/api/pitches/batch` | Bulk upload |
+| DELETE | `/api/pitches/batch` | Bulk delete |
 
-### Analysis
-- `GET /api/compare/[pitcherId]` - Compare user pitches to MLB data with percentile rankings
-- `GET /api/similar/[pitcherId]` - Find MLB pitchers with similar metrics
-- `GET /api/ai-plan/[pitcherId]` - Get AI-generated development recommendations
+### Analytics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/compare/[pitcherId]` | MLB percentile comparison |
+| GET | `/api/similar/[pitcherId]` | Find similar MLB pitchers |
+| POST | `/api/chat` | AI coaching chat |
 
-### Data
-- `GET /api/seed` - Check MLB data status
-- `POST /api/seed` - Seed database with real MLB Statcast data
+### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/seed` | Ingest MLB Statcast data |
 
-## Database Schema
+---
 
-### user_pitchers
-- id, name, age, throws (L/R), level, primary_pitch, created_at
+## Data Ingestion
 
-### user_pitches
-- id, pitcher_id, pitch_type, velocity_mph, spin_rate, horizontal_break, vertical_break, date, notes, created_at
+### Seeding MLB Data
 
-### mlb_pitches
-- id, pitcher_name, pitch_type, release_speed, release_spin_rate, pfx_x, pfx_z, game_date, p_throws, created_at
+1. Navigate to `/admin`
+2. Login with `ADMIN_PASSWORD`
+3. Select date range
+4. Click **Start Ingestion**
 
-## Data Source
+Data is fetched from Baseball Savant in chunks to avoid rate limiting.
 
-This application uses official MLB Statcast data obtained from [Baseball Savant](https://baseballsavant.mlb.com/statcast_search). The data includes:
-- Pitch velocity (release_speed)
-- Spin rate (release_spin_rate)
-- Horizontal movement (pfx_x)
-- Vertical movement (pfx_z)
-- Pitcher name and throw hand
+---
+
+## AI Coaching System
+
+Maven AI provides personalized coaching based on your actual pitch data.
+
+### Capabilities
+- Arsenal analysis with usage percentages
+- Velocity separation analysis
+- Consistency grading (Elite/Good/Average/Needs Work)
+- MLB percentile benchmarking
+- Trend analysis (last 10 vs overall)
+- Similar pitcher identification
+- Sequencing strategy
+
+### Example Prompts
+| Prompt | Response Type |
+|--------|---------------|
+| "Analyze my arsenal" | Full breakdown of all pitches |
+| "How is my consistency?" | Stddev analysis with grades |
+| "Who do I throw like?" | Similar MLB pitchers |
+| "What should I work on?" | Prioritized improvements |
+
+See [AIfeatures.md](AIfeatures.md) for full documentation.
+
+---
+
+## Security
+
+### Authentication
+- Firebase Authentication with JWT tokens
+- Token verification on all authenticated endpoints
+
+### Rate Limiting
+| Endpoint Type | Limit |
+|---------------|-------|
+| Auth | 5 req/min |
+| API | 100 req/min |
+| Batch | 50 req/min |
+| Heavy (seed) | 3 req/5min |
+
+### Data Protection
+- RLS policies enforce data ownership
+- Input validation and sanitization
+- Parameterized queries prevent SQL injection
+
+---
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push to GitHub
+2. Import to Vercel
+3. Add environment variables in dashboard
+4. Deploy
+
+### Environment Variables for Production
+Set these in Vercel Dashboard → Settings → Environment Variables:
+- All Supabase keys
+- All Firebase keys
+- `GEMINI_API_KEY`
+- `ADMIN_PASSWORD`
+
+---
+
+## Scripts
+
+```bash
+npm run dev          # Development server
+npm run build        # Production build
+npm run start        # Production server
+npm run lint         # Run ESLint
+```
+
+---
+
+## Documentation
+
+| File | Description |
+|------|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Project structure & patterns |
+| [AIfeatures.md](AIfeatures.md) | AI coaching system details |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment guide |
+| [docs/CSV.md](docs/CSV.md) | CSV upload format |
+
+---
 
 ## License
 
