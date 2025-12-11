@@ -443,9 +443,8 @@ These were generated/refined with AI assistance (polished code with comprehensiv
 Planned future improvements:
 
 - [ ] **Visual Upgrade**: Remove generic AI imagery; replace with high-quality, custom visuals.
-- [ ] **Coach Features**: Incorporate "Morita" features for advanced coaching tools.
+- [ ] **Coach Features**: Incorporate more features for advanced coaching tools.
 - [ ] **Advanced Insights**: Develop deeper, more complex SQL queries for AI analysis.
-- [ ] **Mobile Optimization**: Complete mobile-responsive design for on-field use.
 
 ---
 
