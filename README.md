@@ -36,6 +36,7 @@ A full-stack baseball pitch tracking platform that compares your pitches against
 - CSV upload for bulk pitch data
 - Column mapping UI for flexible imports
 - Validation and error handling
+- **Sample data included** - see `dummy data(CSV)/` folder
 
 ---
 
@@ -99,6 +100,9 @@ maven-project/
 │   ├── CSV.md              # CSV upload format
 │   ├── DEPLOYMENT.md       # Deployment guide
 │   └── ...                 # Other docs
+│
+├── dummy data(CSV)/         # Sample data for testing
+│   └── pitch_dummy.csv     # 49 sample pitches
 │
 └── [config files]
 ```
@@ -239,6 +243,44 @@ All user data is protected by RLS policies that enforce ownership via Firebase U
 4. Click **Start Ingestion**
 
 Data is fetched from Baseball Savant in chunks to avoid rate limiting.
+
+---
+
+## Batch Upload (CSV)
+
+Upload your pitch data in bulk using CSV files.
+
+### Using Sample Data
+
+A sample CSV file is included for testing:
+
+```
+dummy data(CSV)/pitch_dummy.csv
+```
+
+This file contains **49 sample pitches** across 7 pitch types (Fastball, Sinker, Slider, Curveball, Changeup, Cutter, Splitter).
+
+### How to Upload
+
+1. Navigate to your **Dashboard**
+2. Click **Batch Upload** or go to pitch entry
+3. Select your CSV file
+4. Map columns if needed (auto-detected for standard format)
+5. Click **Upload**
+
+### CSV Format
+
+| Column | Required | Example |
+|--------|----------|---------|
+| `pitch_type` | ✅ Yes | Fastball, Slider, Curveball |
+| `velocity_mph` | ✅ Yes | 95.4 |
+| `spin_rate` | Optional | 2325 |
+| `horizontal_break` | Optional | 8.2 |
+| `vertical_break` | Optional | 15.1 |
+| `date` | Optional | 2024-03-12 |
+| `notes` | Optional | Good ride |
+
+See [CSV.md](markdown/CSV.md) for full format documentation.
 
 ---
 
