@@ -235,7 +235,14 @@ All user data is protected by RLS policies that enforce ownership via Firebase U
 
 ## Data Ingestion
 
-See [INGESTION.md](markdown/INGESTION.md) for full documentation on the MLB data scraper, chunking strategy, and retry logic.
+The system features a robust, automated pipeline for ingesting MLB Statcast data:
+
+- **Smart Chunking**: Data is processed in **3-day chunks** to manage memory and payload sizes.
+- **Rate Limit Protection**: Implements a **5-second buffer period** between requests to prevent SavantStat API blocking.
+- **Reliability**: Exponential backoff retry logic ensures data integrity even during API fluctuations.
+- **Modes**: Supports both **Append** (default) and **Replace All** strategies.
+
+See [INGESTION.md](markdown/INGESTION.md) for full documentation.
 
 ---
 
@@ -324,17 +331,32 @@ See [AIfeatures.md](markdown/AIfeatures.md) for full documentation.
 
 ---
 
+---
+
+## Infrastructure & Data
+
+### Database
+- **PostgreSQL** (Supabase)
+- **~690,000 Records**: Pre-populated with historical pitching data scraped from SavantStat.
+- **Performance**: Highly normalized schema with strategic indexing for fast complex queries.
+
+### Validation & Security
+- **Cybersecurity**: Strict measures to prevent SQL injection and AI prompt injection.
+- **Data Integrity**: **PapaParse** implementation for strict CSV validation, ensuring clean data and preventing duplicates.
+- **API Protection**: Comprehensive rate limiting on all endpoints.
+
+---
+
 ## Deployment
 
-### Vercel (Recommended)
+### Frontend
+- **Vercel**: Hosts the Next.js application for optimal edge performance.
 
-1. Push to GitHub
-2. Import to Vercel
-3. Add environment variables in dashboard
-4. Deploy
+### Backend
+- **Supabase**: Managed PostgreSQL database and authentication services.
 
-### Environment Variables for Production
-Set these in Vercel Dashboard → Settings → Environment Variables:
+### Environment Variables
+Set these in your Vercel/Supabase dashboards:
 - All Supabase keys
 - All Firebase keys
 - `GEMINI_API_KEY`
@@ -413,6 +435,17 @@ These were generated/refined with AI assistance (polished code with comprehensiv
 - **Backend**: Required understanding of Baseball Savant API, rate limiting, data structures
 - **Frontend**: AI excels at generating React components, CSS, and boilerplate
 - **Result**: Fast development while maintaining control over critical logic
+
+---
+
+## Roadmap
+
+Planned future improvements:
+
+- [ ] **Visual Upgrade**: Remove generic AI imagery; replace with high-quality, custom visuals.
+- [ ] **Coach Features**: Incorporate "Morita" features for advanced coaching tools.
+- [ ] **Advanced Insights**: Develop deeper, more complex SQL queries for AI analysis.
+- [ ] **Mobile Optimization**: Complete mobile-responsive design for on-field use.
 
 ---
 
