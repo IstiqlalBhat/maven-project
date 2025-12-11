@@ -24,25 +24,30 @@ export async function POST(request: Request) {
             startDate = '2024-09-01',
             endDate = '2024-09-30',
             season = 2024,
-            force = false
+            force = false,
+            append = false  // New: append mode adds data without truncating existing data
         } = body;
 
         // Initialize database schema
         await initializeDatabase();
 
-        // Check if data already exists
+        // Check if data already exists (skip check if appending)
         const hasData = await hasMLBData();
-        if (hasData && !force) {
+
+        // Append mode: just insert new data without any truncation
+        if (append) {
+            // Proceed directly to insertion - no truncation, no blocking check
+            console.log(`Appending data for ${startDate} to ${endDate}...`);
+        } else if (hasData && !force) {
+            // Normal mode: block if data exists and force not specified
             const stats = await getMLBDataStats();
             return NextResponse.json({
-                message: 'MLB data already exists. Use force=true to re-seed.',
+                message: 'MLB data already exists. Use force=true to re-seed or append=true to add more data.',
                 exists: true,
                 stats,
             });
-        }
-
-        // Clear existing data if force seeding (TRUNCATE is much faster than DELETE)
-        if (force && hasData) {
+        } else if (force && hasData) {
+            // Force mode: clear existing data first (TRUNCATE is much faster than DELETE)
             await query('TRUNCATE TABLE mlb_pitches RESTART IDENTITY');
         }
 
@@ -64,7 +69,7 @@ export async function POST(request: Request) {
         const stats = await getMLBDataStats();
 
         return NextResponse.json({
-            message: 'MLB data seeded successfully',
+            message: append ? 'MLB data appended successfully' : 'MLB data seeded successfully',
             result,
             stats,
         });

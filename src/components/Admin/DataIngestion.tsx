@@ -17,6 +17,8 @@ export default function DataIngestion() {
     const [previewing, setPreviewing] = useState(false);
     const [preview, setPreview] = useState<PreviewResult | null>(null);
     const [previewError, setPreviewError] = useState('');
+    // Default to append mode (adds data without wiping existing data)
+    const [replaceAll, setReplaceAll] = useState(false);
     const { state: ingestionState, startIngestion, updateIngestion, completeIngestion, failIngestion } = useIngestion();
     const { token, logout } = useAdminAuth();
 
@@ -70,7 +72,10 @@ export default function DataIngestion() {
                 body: JSON.stringify({
                     startDate,
                     endDate,
-                    force: true
+                    // append=true adds data without wiping existing data
+                    // force=true replaces ALL data (truncates first)
+                    append: !replaceAll,
+                    force: replaceAll
                 }),
                 signal: controller.signal, // Use abort signal
             });
@@ -177,7 +182,29 @@ export default function DataIngestion() {
                     </button>
                 </div>
 
-                {/* Preview Section */}
+                {/* Ingestion Mode Toggle */}
+                <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={replaceAll}
+                            onChange={(e) => setReplaceAll(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                        />
+                        <div className="flex-1">
+                            <span className={`text-sm font-medium ${replaceAll ? 'text-red-700' : 'text-gray-700'}`}>
+                                {replaceAll ? 'Replace All Data' : 'Append Mode (Recommended)'}
+                            </span>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                {replaceAll
+                                    ? '⚠️ WARNING: This will DELETE all existing MLB data before importing!'
+                                    : 'Adds new data for the selected date range without deleting existing data.'}
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+
                 {preview && (
                     <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-2">
                         <div className="flex items-center gap-2 text-blue-700 font-semibold">

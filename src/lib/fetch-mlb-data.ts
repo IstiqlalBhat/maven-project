@@ -138,22 +138,122 @@ interface MLBPitchInsert {
     p_throws: string | null;
 }
 
+// Failed chunk info for retry tracking
+interface FailedChunk {
+    startDate: string;
+    endDate: string;
+    error: string;
+    attempts: number;
+}
+
+// Result from processing a single chunk
+interface ChunkResult {
+    inserted: number;
+    skipped: number;
+    success: boolean;
+    error?: string;
+}
+
+// Process a single date chunk - extracted for retry logic
+async function processChunk(
+    chunkStart: string,
+    chunkEnd: string,
+    season: number,
+    batchSize: number
+): Promise<ChunkResult> {
+    const url = buildStatcastUrl({
+        startDate: chunkStart,
+        endDate: chunkEnd,
+        season,
+    });
+
+    const response = await fetch(url, {
+        headers: {
+            'User-Agent': 'PitchTracker/1.0',
+            'Accept': 'text/csv',
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+    }
+
+    const csvText = await response.text();
+    console.log(`📥 Downloaded ${(csvText.length / 1024 / 1024).toFixed(2)} MB`);
+
+    const rows = parseCSV(csvText);
+    console.log(`📊 Parsed ${rows.length} pitch records`);
+
+    if (rows.length >= 25000) {
+        console.warn('⚠️ WARNING: Chunk hit 25,000 record limit! Data may be truncated.');
+    }
+
+    let inserted = 0;
+    let skipped = 0;
+
+    if (rows.length > 0) {
+        const pitchesToInsert: MLBPitchInsert[] = [];
+
+        for (const row of rows) {
+            if (!row.player_name || !row.pitch_type) {
+                skipped++;
+                continue;
+            }
+
+            pitchesToInsert.push({
+                pitcher_name: row.player_name,
+                pitch_type: row.pitch_type,
+                release_speed: row.release_speed ? parseFloat(row.release_speed) : null,
+                release_spin_rate: row.release_spin_rate ? parseInt(row.release_spin_rate) : null,
+                pfx_x: row.pfx_x ? parseFloat(row.pfx_x) : null,
+                pfx_z: row.pfx_z ? parseFloat(row.pfx_z) : null,
+                game_date: row.game_date || null,
+                p_throws: row.p_throws || null,
+            });
+        }
+
+        if (pitchesToInsert.length > 0) {
+            console.log('🚀 Inserting to Supabase in batches...');
+            const client = await getClient();
+
+            for (let i = 0; i < pitchesToInsert.length; i += batchSize) {
+                const batch = pitchesToInsert.slice(i, i + batchSize);
+                const { error } = await client.from('mlb_pitches').insert(batch);
+
+                if (error) {
+                    throw new Error(`Batch insert failed: ${error.message}`);
+                }
+                inserted += batch.length;
+
+                if ((i / batchSize) % 10 === 0) {
+                    console.log(`   Progress: ${Math.min(i + batchSize, pitchesToInsert.length)}/${pitchesToInsert.length}`);
+                }
+            }
+
+            console.log(`   Chunk results: ${pitchesToInsert.length} processed, ${skipped} skipped`);
+        }
+    }
+
+    return { inserted, skipped, success: true };
+}
+
 // Fetch MLB data from Baseball Savant and insert into Supabase
 export async function fetchAndSeedMLBData(options: {
     startDate: string;
     endDate: string;
     season?: number;
     batchSize?: number;
-}): Promise<{ inserted: number; skipped: number; errors: number }> {
+}): Promise<{ inserted: number; skipped: number; errors: number; failedChunks?: FailedChunk[] }> {
     const season = options.season || new Date().getFullYear();
     const CHUNK_DAYS = 3;
-    const BATCH_SIZE = options.batchSize || 500; // Supabase insert batch size
+    const BATCH_SIZE = options.batchSize || 500;
+    const MAX_RETRIES = 3;
 
     console.log(`\n🎯 Fetching MLB Statcast data from ${options.startDate} to ${options.endDate}`);
     console.log(`   Season: ${season}`);
     console.log(`   Chunk size: ${CHUNK_DAYS} days`);
+    console.log(`   Max retries per chunk: ${MAX_RETRIES}`);
 
-    // Initialize database schema
     await initializeDatabase();
 
     let currentStartDate = options.startDate;
@@ -162,125 +262,111 @@ export async function fetchAndSeedMLBData(options: {
     let totalInserted = 0;
     let totalSkipped = 0;
     let totalErrors = 0;
+    const failedChunks: FailedChunk[] = [];
 
-    // Loop through date chunks
+    // First pass: process all chunks
     while (new Date(currentStartDate) <= new Date(finalEndDate)) {
         let currentEndDate = addDays(currentStartDate, CHUNK_DAYS);
 
-        // Don't go past the final end date
         if (new Date(currentEndDate) > new Date(finalEndDate)) {
             currentEndDate = finalEndDate;
         }
 
         console.log(`\n📅 Processing chunk: ${currentStartDate} to ${currentEndDate}`);
-
-        // Build URL and fetch
-        const url = buildStatcastUrl({
-            startDate: currentStartDate,
-            endDate: currentEndDate,
-            season,
-        });
-
         console.log('📡 Downloading CSV from Baseball Savant...');
 
         try {
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'PitchTracker/1.0',
-                    'Accept': 'text/csv',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
-            }
-
-            const csvText = await response.text();
-            console.log(`📥 Downloaded ${(csvText.length / 1024 / 1024).toFixed(2)} MB`);
-
-            // Parse CSV
-            const rows = parseCSV(csvText);
-            console.log(`📊 Parsed ${rows.length} pitch records`);
-
-            if (rows.length >= 25000) {
-                console.warn('⚠️ WARNING: Chunk hit 25,000 record limit! Data may be truncated.');
-            }
-
-            if (rows.length > 0) {
-                // Prepare data for batch insert
-                const pitchesToInsert: MLBPitchInsert[] = [];
-                let chunkSkipped = 0;
-
-                for (const row of rows) {
-                    // Skip rows without essential data
-                    if (!row.player_name || !row.pitch_type) {
-                        chunkSkipped++;
-                        continue;
-                    }
-
-                    pitchesToInsert.push({
-                        pitcher_name: row.player_name,
-                        pitch_type: row.pitch_type,
-                        release_speed: row.release_speed ? parseFloat(row.release_speed) : null,
-                        release_spin_rate: row.release_spin_rate ? parseInt(row.release_spin_rate) : null,
-                        pfx_x: row.pfx_x ? parseFloat(row.pfx_x) : null,
-                        pfx_z: row.pfx_z ? parseFloat(row.pfx_z) : null,
-                        game_date: row.game_date || null,
-                        p_throws: row.p_throws || null,
-                    });
-                }
-
-                if (pitchesToInsert.length > 0) {
-                    console.log('🚀 Inserting to Supabase in batches...');
-
-                    const client = await getClient();
-
-                    // Insert in batches
-                    for (let i = 0; i < pitchesToInsert.length; i += BATCH_SIZE) {
-                        const batch = pitchesToInsert.slice(i, i + BATCH_SIZE);
-
-                        const { error } = await client
-                            .from('mlb_pitches')
-                            .insert(batch);
-
-                        if (error) {
-                            console.error(`Batch insert error:`, error.message);
-                            totalErrors++;
-                        } else {
-                            totalInserted += batch.length;
-                        }
-
-                        // Progress indicator
-                        if ((i / BATCH_SIZE) % 10 === 0) {
-                            console.log(`   Progress: ${Math.min(i + BATCH_SIZE, pitchesToInsert.length)}/${pitchesToInsert.length}`);
-                        }
-                    }
-
-                    console.log(`   Chunk results: ${pitchesToInsert.length} processed, ${chunkSkipped} skipped`);
-                    totalSkipped += chunkSkipped;
-                }
-            }
+            const result = await processChunk(currentStartDate, currentEndDate, season, BATCH_SIZE);
+            totalInserted += result.inserted;
+            totalSkipped += result.skipped;
         } catch (error) {
-            console.error(`Error processing chunk ${currentStartDate} to ${currentEndDate}:`, error);
-            totalErrors++;
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`❌ Error processing chunk ${currentStartDate} to ${currentEndDate}: ${errorMsg}`);
+
+            // Queue for retry
+            failedChunks.push({
+                startDate: currentStartDate,
+                endDate: currentEndDate,
+                error: errorMsg,
+                attempts: 1
+            });
         }
 
-        // Move to next chunk
         currentStartDate = addDays(currentEndDate, 1);
-
-        // Small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    // Retry failed chunks (up to MAX_RETRIES total attempts)
+    if (failedChunks.length > 0) {
+        console.log(`\n🔄 Retrying ${failedChunks.length} failed chunk(s)...`);
+
+        const permanentlyFailed: FailedChunk[] = [];
+
+        for (const failedChunk of failedChunks) {
+            let retrySuccess = false;
+
+            while (failedChunk.attempts < MAX_RETRIES && !retrySuccess) {
+                failedChunk.attempts++;
+                console.log(`\n🔄 Retry attempt ${failedChunk.attempts}/${MAX_RETRIES}: ${failedChunk.startDate} to ${failedChunk.endDate}`);
+
+                // Wait longer before retry (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * failedChunk.attempts));
+
+                try {
+                    const result = await processChunk(
+                        failedChunk.startDate,
+                        failedChunk.endDate,
+                        season,
+                        BATCH_SIZE
+                    );
+                    totalInserted += result.inserted;
+                    totalSkipped += result.skipped;
+                    retrySuccess = true;
+                    console.log(`✅ Retry successful for ${failedChunk.startDate} to ${failedChunk.endDate}`);
+                } catch (error) {
+                    failedChunk.error = error instanceof Error ? error.message : 'Unknown error';
+                    console.warn(`⚠️ Retry ${failedChunk.attempts}/${MAX_RETRIES} failed: ${failedChunk.error}`);
+                }
+            }
+
+            if (!retrySuccess) {
+                permanentlyFailed.push(failedChunk);
+                totalErrors++;
+            }
+        }
+
+        // Log final error summary for chunks that failed all retries
+        if (permanentlyFailed.length > 0) {
+            console.error('\n' + '='.repeat(60));
+            console.error('❌ CHUNK FAILURE SUMMARY - The following chunks failed after all retries:');
+            console.error('='.repeat(60));
+
+            for (const chunk of permanentlyFailed) {
+                console.error(`  📅 Date Range: ${chunk.startDate} to ${chunk.endDate}`);
+                console.error(`     Attempts: ${chunk.attempts}/${MAX_RETRIES}`);
+                console.error(`     Last Error: ${chunk.error}`);
+                console.error('');
+            }
+
+            console.error('='.repeat(60));
+            console.error(`Total failed chunks: ${permanentlyFailed.length}`);
+            console.error('You can retry these date ranges manually later.');
+            console.error('='.repeat(60) + '\n');
+        }
     }
 
     console.log(`\n✅ Complete! Total Inserted: ${totalInserted}, Skipped: ${totalSkipped}, Errors: ${totalErrors}`);
 
-    // Note: Materialized view refresh not supported via JS client
-    // This would need to be done via Supabase Dashboard or RPC function
     if (totalInserted > 0) {
         console.log('⚠️ Note: Run `REFRESH MATERIALIZED VIEW mv_pitcher_stats` in Supabase SQL Editor');
     }
 
-    return { inserted: totalInserted, skipped: totalSkipped, errors: totalErrors };
+    return {
+        inserted: totalInserted,
+        skipped: totalSkipped,
+        errors: totalErrors,
+        failedChunks: failedChunks.filter(c => c.attempts >= MAX_RETRIES)
+    };
 }
 
 // Check if database already has data
