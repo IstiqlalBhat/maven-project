@@ -7,7 +7,7 @@ A full-stack baseball pitch tracking platform that compares your pitches against
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green)
 ![Firebase](https://img.shields.io/badge/Firebase-Auth-orange)
 
-> **Note:** All documentation files in the `markdown/` folder were generated with AI assistance 😊
+> **Note:** All documentation files(including this Readme.MD) in the `markdown/` folder were generated with AI assistance 😊
 
 ---
 
