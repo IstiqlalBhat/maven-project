@@ -13,7 +13,7 @@ import AIChat from '@/components/AIChat';
 import BenchmarkTable from '@/components/BenchmarkTable';
 import PitchForm, { PitchData } from '@/components/PitchForm';
 import ArsenalTable from '@/components/ArsenalTable';
-import PercentileBar from '@/components/PercentileBar';
+import PitchStatsVisualization from '@/components/PitchStatsVisualization';
 import { authGet, authPost, authPut, authDelete } from '@/lib/auth-fetch';
 
 interface Pitcher {
@@ -439,49 +439,9 @@ export default function DashboardPage() {
                                 </div>
                             )}
 
-                            {/* Percentiles */}
+                            {/* Pitch Stats Visualization */}
                             {comparisons.length > 0 && (
-                                <div className="glass-card p-6">
-                                    <h3 className="font-semibold text-gray-800 mb-4">Your Pitches vs MLB</h3>
-                                    <div className="space-y-6">
-                                        {comparisons.map((comparison, idx) => (
-                                            <div key={idx} className="space-y-4">
-                                                <h4 className="font-medium text-gray-700">{comparison.pitchType}</h4>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <PercentileBar
-                                                        label="Velocity"
-                                                        value={comparison.userStats.avgVelo}
-                                                        percentile={comparison.percentiles.velocity}
-                                                        unit="mph"
-                                                        mlbAvg={comparison.mlbStats.avgVelo}
-                                                        mlbMax={comparison.mlbStats.maxVelo}
-                                                    />
-                                                    <PercentileBar
-                                                        label="Spin Rate"
-                                                        value={comparison.userStats.avgSpin}
-                                                        percentile={comparison.percentiles.spinRate}
-                                                        unit="rpm"
-                                                        mlbAvg={comparison.mlbStats.avgSpin}
-                                                    />
-                                                    <PercentileBar
-                                                        label="Horizontal Break"
-                                                        value={comparison.userStats.avgHBreak}
-                                                        percentile={comparison.percentiles.horizontalBreak}
-                                                        unit='"'
-                                                        mlbAvg={comparison.mlbStats.avgHBreak}
-                                                    />
-                                                    <PercentileBar
-                                                        label="Vertical Break"
-                                                        value={comparison.userStats.avgVBreak}
-                                                        percentile={comparison.percentiles.verticalBreak}
-                                                        unit='"'
-                                                        mlbAvg={comparison.mlbStats.avgVBreak}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                <PitchStatsVisualization comparisons={comparisons} />
                             )}
 
                             {/* Benchmark Table */}

@@ -34,6 +34,10 @@ export default function AIChat({ pitcher }: AIChatProps) {
     const lastAnimatedMessageId = useRef<string | null>(null);
     // Track initial mount to prevent page scroll on load
     const isInitialMount = useRef(true);
+    // Track message IDs loaded from storage - these should NOT be re-animated
+    const loadedMessageIds = useRef<Set<string>>(new Set());
+    // Throttle scroll updates to prevent layout thrashing during animation
+    const scrollRAF = useRef<number | null>(null);
 
     // Storage key depends on pitcher context
     // Using sessionStorage instead of localStorage for security:
@@ -60,11 +64,16 @@ export default function AIChat({ pitcher }: AIChatProps) {
             try {
                 const parsed = JSON.parse(saved);
                 // Convert string timestamps back to Date objects
-                const rehydrated = parsed.map((m: any) => ({
-                    ...m,
-                    id: m.id || createMessageId(),
-                    timestamp: m.timestamp ? new Date(m.timestamp) : undefined
-                }));
+                const rehydrated = parsed.map((m: any) => {
+                    const id = m.id || createMessageId();
+                    // Track loaded message IDs to prevent re-animation
+                    loadedMessageIds.current.add(id);
+                    return {
+                        ...m,
+                        id,
+                        timestamp: m.timestamp ? new Date(m.timestamp) : undefined
+                    };
+                });
                 setMessages(rehydrated);
             } catch (e) {
                 console.error('Failed to parse chat history', e);
@@ -98,9 +107,27 @@ export default function AIChat({ pitcher }: AIChatProps) {
     }, [messages, scrollToBottom]);
 
     // Keep chat pinned during AI response animation (contained to chat only)
+    // Uses requestAnimationFrame to throttle scroll updates and prevent layout thrashing
     useEffect(() => {
         if (!activeAiMessageId || !autoScrollEnabled) return;
-        scrollToBottom();
+
+        // Cancel any pending scroll to prevent stacking
+        if (scrollRAF.current !== null) {
+            cancelAnimationFrame(scrollRAF.current);
+        }
+
+        // Schedule scroll for next animation frame
+        scrollRAF.current = requestAnimationFrame(() => {
+            scrollToBottom();
+            scrollRAF.current = null;
+        });
+
+        return () => {
+            if (scrollRAF.current !== null) {
+                cancelAnimationFrame(scrollRAF.current);
+                scrollRAF.current = null;
+            }
+        };
     }, [activeAiMessageId, renderedAiText, autoScrollEnabled, scrollToBottom]);
 
     // Focus input on mount
@@ -119,7 +146,8 @@ export default function AIChat({ pitcher }: AIChatProps) {
 
         const messageId = lastMessage.id || (lastMessage.timestamp ? new Date(lastMessage.timestamp).getTime().toString() : createMessageId());
 
-        if (lastAnimatedMessageId.current === messageId) {
+        // Skip animation for messages already animated OR loaded from storage
+        if (lastAnimatedMessageId.current === messageId || loadedMessageIds.current.has(messageId)) {
             return;
         }
 
@@ -141,6 +169,7 @@ export default function AIChat({ pitcher }: AIChatProps) {
 
             if (index >= fullText.length) {
                 window.clearInterval(interval);
+                setActiveAiMessageId(null);
             }
         }, 14);
 
