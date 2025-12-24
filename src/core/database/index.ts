@@ -292,16 +292,23 @@ async function handleDelete<T>(sql: string, params?: unknown[]): Promise<QueryRe
 
 // Handle REFRESH MATERIALIZED VIEW
 async function handleRefreshMaterializedView<T>(sql: string): Promise<QueryResult<T>> {
-    const viewMatch = sql.match(/refresh\s+materialized\s+view\s+(\w+)/i);
+    // Check for CONCURRENTLY keyword
+    const concurrentlyMatch = sql.match(/refresh\s+materialized\s+view\s+concurrently\s+(\w+)/i);
+    const normalMatch = sql.match(/refresh\s+materialized\s+view\s+(\w+)/i);
+    
+    const isConcurrent = !!concurrentlyMatch;
+    const viewMatch = concurrentlyMatch || normalMatch;
+    
     if (!viewMatch) {
         throw new Error('Invalid REFRESH MATERIALIZED VIEW query');
     }
 
     const viewName = viewMatch[1];
 
-    // Use RPC function to refresh materialized view
+    // Use RPC function to refresh materialized view (with optional CONCURRENTLY)
     const { error } = await getServiceClient().rpc('refresh_materialized_view', {
-        view_name: viewName
+        view_name: viewName,
+        concurrent: isConcurrent // New parameter for non-blocking refresh
     });
 
     if (error) {
